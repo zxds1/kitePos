@@ -10,6 +10,7 @@ const Shop = model.define("shop", {
   // Location (For Data Monetization)
   region_code: model.text(),
   ward_code: model.text(),
+  category: model.text().nullable(),
 
   // Compliance (ODPC)
   consent_given: model.boolean().default(false),

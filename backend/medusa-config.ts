@@ -30,5 +30,8 @@ module.exports = defineConfig({
     {
       resolve: "./src/modules/adjustment",
     },
+    {
+      resolve: "./src/modules/otp-challenge",
+    },
   ],
 })

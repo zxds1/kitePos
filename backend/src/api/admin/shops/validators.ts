@@ -8,6 +8,7 @@ export const AdminCreateShop = z.object({
     .regex(/^254[0-9]{9}$/, "Owner phone must be in format 2547XXXXXXXX"),
   region_code: z.string().min(1),
   ward_code: z.string().min(1),
+  category: z.string().optional(),
   consent_given: z.boolean().optional().default(false),
   consent_timestamp: z.coerce.date().optional(),
   is_active: z.boolean().optional().default(true),

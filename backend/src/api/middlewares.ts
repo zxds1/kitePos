@@ -18,6 +18,11 @@ import { AdminBatchSalesRequest } from "./admin/inventory/batch-sales/validator"
 import { AdminCreateShop } from "./admin/shops/validators"
 import { createRedisBackedRateLimiter } from "./admin/_utils/rate-limit"
 import { AdminValidateSaleRequest } from "./admin/inventory/validate-sale/validator"
+import {
+  AuthRegisterShop,
+  AuthRequestOtp,
+  AuthVerifyOtp,
+} from "./auth/validators"
 
 function normalizeAccessTokenHeader(
   req: MedusaRequest,
@@ -46,6 +51,21 @@ const batchSalesRateLimiter = createRedisBackedRateLimiter({
 
 export default defineMiddlewares({
   routes: [
+    {
+      method: ["POST"],
+      matcher: "/auth/request-otp",
+      middlewares: [validateAndTransformBody(AuthRequestOtp)],
+    },
+    {
+      method: ["POST"],
+      matcher: "/auth/verify-otp",
+      middlewares: [validateAndTransformBody(AuthVerifyOtp)],
+    },
+    {
+      method: ["POST"],
+      matcher: "/auth/register-shop",
+      middlewares: [validateAndTransformBody(AuthRegisterShop)],
+    },
     {
       method: ["GET"],
       matcher: "/admin/shops",
