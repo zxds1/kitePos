@@ -2,6 +2,11 @@ import { randomUUID } from "node:crypto"
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { SHOP_MODULE } from "../../../modules/shop"
 import type ShopModuleService from "../../../modules/shop/service"
+import {
+  authenticatePosJwt,
+  issuePosAuthTokens,
+  type PosAuthenticatedRequest,
+} from "../_utils/jwt"
 import { hashPhone } from "../../../utils/hash"
 import { AuthRegisterShop } from "../validators"
 
@@ -24,10 +29,24 @@ function shapeShop(shop: Record<string, unknown>) {
 }
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
+  const auth = authenticatePosJwt(req as PosAuthenticatedRequest, res)
+
+  if (!auth) {
+    return
+  }
+
   const shopService: ShopModuleService = req.scope.resolve(SHOP_MODULE)
   const body = AuthRegisterShop.parse(req.validatedBody)
-
   const ownerPhoneHash = hashPhone(body.owner_phone)
+
+  if (auth.phone_number !== body.owner_phone) {
+    res.status(403).json({
+      success: false,
+      message: "Token does not match owner phone number",
+    })
+    return
+  }
+
 
   const [existingShop] = await shopService.listShops(
     { owner_phone_hash: ownerPhoneHash },
@@ -59,8 +78,15 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     mpesa_display_name: body.mpesa_display_name ?? null,
   })
 
+  const tokens = issuePosAuthTokens({
+    phone_number: body.owner_phone,
+    shop_id: String((shop as Record<string, unknown>).id),
+    is_registered: true,
+  })
+
   res.status(201).json({
     success: true,
+    ...tokens,
     next_step: "home",
     shop: shapeShop(shop as unknown as Record<string, unknown>),
   })

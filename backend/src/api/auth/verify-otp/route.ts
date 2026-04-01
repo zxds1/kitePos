@@ -3,6 +3,8 @@ import { OTP_CHALLENGE_MODULE } from "../../../modules/otp-challenge"
 import type OtpChallengeModuleService from "../../../modules/otp-challenge/service"
 import { SHOP_MODULE } from "../../../modules/shop"
 import type ShopModuleService from "../../../modules/shop/service"
+import { issuePosAuthTokens } from "../_utils/jwt"
+import { resolveShopAuthState } from "../_utils/shop-auth"
 import { hashOtp, hashPhone } from "../../../utils/hash"
 import { AuthVerifyOtp } from "../validators"
 
@@ -69,17 +71,20 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     },
   ])
 
-  const [shop] = await shopService.listShops(
-    { owner_phone_hash: phoneHash },
-    { take: 1 }
-  )
-
-  const shopRecord = shop as unknown as Record<string, unknown> | undefined
-  const consentGiven = Boolean(shopRecord?.consent_given)
+  const shopState = await resolveShopAuthState(shopService, phoneHash)
+  const shopRecord = shopState.shop ?? undefined
+  const consentGiven = shopState.isRegistered
+  const tokens = issuePosAuthTokens({
+    phone_number: body.phone_number,
+    shop_id: typeof shopRecord?.id === "string" ? shopRecord.id : null,
+    is_registered: consentGiven,
+  })
 
   res.status(200).json({
     success: true,
-    next_step: consentGiven ? "home" : "shop_registration",
+    is_registered: consentGiven,
+    ...tokens,
+    next_step: consentGiven ? "home" : "register_shop",
     shop: shopRecord ? shapeShop(shopRecord) : null,
   })
 }

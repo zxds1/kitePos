@@ -1,255 +1,335 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
+import {
+  ContainerRegistrationKeys,
+  Modules,
+  ProductStatus,
+} from "@medusajs/framework/utils"
+import {
+  createInventoryLevelsWorkflow,
+  createProductsWorkflow,
+} from "@medusajs/medusa/core-flows"
+import { authenticatePosJwt, type PosAuthenticatedRequest } from "../../auth/_utils/jwt"
 import { INVENTORY_CONFIG_MODULE } from "../../../modules/inventory-config"
 import type InventoryConfigModuleService from "../../../modules/inventory-config/service"
-import { calculateServerStock } from "../inventory/_utils/stock"
+import { RESTOCK_MODULE } from "../../../modules/restock"
+import type RestockModuleService from "../../../modules/restock/service"
+import {
+  CreateProductSchema,
+  ListProductsSchema,
+} from "./validator"
+import { listNormalizedProducts, resolveShopId } from "./_utils"
+import type {
+  ProductQueryRecord,
+  ProductVariantQueryRecord,
+} from "./_utils"
 
-type ProductQueryRecord = {
-  id: string
-  title?: string | null
-  thumbnail?: string | null
-  categories?: Array<{ name?: string | null } | null> | null
-  created_at?: string | Date | null
-  updated_at?: string | Date | null
-  variants?: Array<ProductVariantQueryRecord | null> | null
+type PosCreateBodyCarrier = MedusaRequest & {
+  pos_product_body?: unknown
 }
 
-type ProductVariantQueryRecord = {
-  id: string
-  title?: string | null
-  thumbnail?: string | null
-  created_at?: string | Date | null
-  updated_at?: string | Date | null
-  price_set?: {
-    prices?: Array<{
-      amount?: number | null
-      currency_code?: string | null
-    } | null> | null
-  } | null
-  inventory?: Array<{
-    location_levels?: Array<{
-      stocked_quantity?: number | null
-    } | null> | null
-  } | null> | null
-}
+function normalizeCreateProductInput(input: unknown) {
+  const posParsed = CreateProductSchema.safeParse(input)
 
-type InventoryConfigRecord = {
-  variant_id: string
-  inventory_type?: string | null
-  purchase_unit?: string | null
-  purchase_value?: number | { value?: string } | null
-  selling_units?: unknown
-  low_stock_threshold?: number | { value?: string } | null
-  is_active?: boolean | null
-  created_at?: string | Date | null
-  updated_at?: string | Date | null
+  if (posParsed.success) {
+    return posParsed
+  }
+
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return posParsed
+  }
+
+  const candidate = input as Record<string, unknown>
+  const metadata =
+    candidate.metadata && typeof candidate.metadata === "object" && !Array.isArray(candidate.metadata)
+      ? (candidate.metadata as Record<string, unknown>)
+      : {}
+  const variants = Array.isArray(candidate.variants)
+    ? (candidate.variants as Array<Record<string, unknown>>)
+    : []
+  const primaryVariant = variants[0] ?? {}
+  const prices = Array.isArray(primaryVariant.prices)
+    ? (primaryVariant.prices as Array<Record<string, unknown>>)
+    : []
+  const primaryPrice = prices[0] ?? {}
+  const metadataSellingUnits = Array.isArray(metadata.pos_selling_units)
+    ? metadata.pos_selling_units
+    : null
+  const normalizedFromAdmin = {
+    name: candidate.title,
+    category:
+      typeof metadata.pos_category === "string" ? metadata.pos_category : undefined,
+    inventory_type: metadata.pos_inventory_type,
+    purchase_unit:
+      typeof metadata.pos_purchase_unit === "string"
+        ? metadata.pos_purchase_unit
+        : "Unit",
+    purchase_value: metadata.pos_purchase_value,
+    cost_per_purchase: metadata.pos_cost_per_purchase,
+    selling_units:
+      metadataSellingUnits ??
+      [
+        {
+          unit:
+            typeof primaryVariant.title === "string" && primaryVariant.title.length
+              ? primaryVariant.title
+              : "piece",
+          price: primaryPrice.amount,
+          conversion_value: 1,
+        },
+      ],
+    low_stock_threshold: metadata.pos_low_stock_threshold,
+    is_active: metadata.pos_is_active,
+    stock_remaining: metadata.pos_stock_remaining,
+  }
+
+  return CreateProductSchema.safeParse(normalizedFromAdmin)
 }
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
-  const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
-  const inventoryConfigService: InventoryConfigModuleService = req.scope.resolve(
-    INVENTORY_CONFIG_MODULE
-  )
-
-  const [{ data }, inventoryConfigs] = await Promise.all([
-    query.graph({
-      entity: "product",
-      fields: [
-        "id",
-        "title",
-        "thumbnail",
-        "categories.name",
-        "created_at",
-        "updated_at",
-        "variants.id",
-        "variants.title",
-        "variants.thumbnail",
-        "variants.created_at",
-        "variants.updated_at",
-        "variants.price_set.prices.amount",
-        "variants.price_set.prices.currency_code",
-        "variants.inventory.location_levels.stocked_quantity",
-      ],
-    }),
-    inventoryConfigService.listInventoryConfigs(
-      {},
-      {
-        take: 1000,
-        order: { created_at: "DESC" },
-      }
-    ),
-  ])
-
-  const inventoryConfigByVariant = new Map<string, InventoryConfigRecord>()
-
-  for (const config of inventoryConfigs as unknown as InventoryConfigRecord[]) {
-    if (!inventoryConfigByVariant.has(config.variant_id)) {
-      inventoryConfigByVariant.set(config.variant_id, config)
-    }
+  const auth = authenticatePosJwt(req as PosAuthenticatedRequest, res)
+  if (!auth) {
+    return
   }
 
-  const shopId =
-    typeof req.query.shop_id === "string" && req.query.shop_id.trim().length > 0
-      ? req.query.shop_id.trim()
-      : null
+  const parsed = ListProductsSchema.safeParse(req.query)
+  if (!parsed.success) {
+    res.status(400).json({
+      success: false,
+      message: "Invalid query parameters",
+      errors: parsed.error.flatten(),
+    })
+    return
+  }
 
-  const products = await Promise.all(
-    (data as ProductQueryRecord[]).flatMap((product) =>
-      (product.variants ?? [])
-        .filter((variant): variant is ProductVariantQueryRecord => Boolean(variant?.id))
-        .map(async (variant) => {
-          const inventoryConfig = inventoryConfigByVariant.get(variant.id)
-          const stockRemaining = shopId
-            ? await calculateServerStock(req.scope, shopId, variant.id)
-            : getVariantInventoryStock(variant)
-
-          return {
-            id: product.id,
-            variant_id: variant.id,
-            name: buildProductName(product, variant),
-            category: getFirstCategoryName(product),
-            inventory_type: inventoryConfig?.inventory_type ?? "discrete",
-            purchase_unit: inventoryConfig?.purchase_unit ?? null,
-            purchase_value: toNumber(inventoryConfig?.purchase_value),
-            selling_units: normalizeSellingUnits(
-              inventoryConfig?.selling_units,
-              variant
-            ),
-            conversion_factor: getConversionFactor(inventoryConfig?.selling_units),
-            stock_remaining: stockRemaining,
-            low_stock_threshold: toNumber(inventoryConfig?.low_stock_threshold),
-            is_active: inventoryConfig?.is_active ?? true,
-            image_url: variant.thumbnail ?? product.thumbnail ?? null,
-            last_synced_at: new Date().toISOString(),
-            created_at: toIsoString(
-              inventoryConfig?.created_at ?? variant.created_at ?? product.created_at
-            ),
-            updated_at: toIsoString(
-              inventoryConfig?.updated_at ?? variant.updated_at ?? product.updated_at
-            ),
-          }
-        })
-    )
+  const query = parsed.data
+  const shopId = resolveShopId(
+    req as PosAuthenticatedRequest,
+    query.shop_id
   )
 
+  const products = await listNormalizedProducts(req, { shopId })
+  const search = query.search?.trim().toLowerCase()
+
+  const filtered = products
+    .filter((product) =>
+      query.inventory_type ? product.inventory_type === query.inventory_type : true
+    )
+    .filter((product) => product.is_active === query.is_active)
+    .filter((product) => {
+      if (!search) {
+        return true
+      }
+
+      return [
+        product.name,
+        product.category,
+        product.purchase_unit,
+        product.inventory_type,
+      ]
+        .filter((value): value is string => Boolean(value))
+        .some((value) => value.toLowerCase().includes(search))
+    })
+
+  const paginated = filtered.slice(query.offset, query.offset + query.limit)
+
   res.json({
-    products,
-    count: products.length,
+    success: true,
+    products: paginated,
+    count: filtered.length,
+    limit: query.limit,
+    offset: query.offset,
   })
 }
 
-function buildProductName(
-  product: ProductQueryRecord,
-  variant: ProductVariantQueryRecord
-) {
-  const productTitle = product.title?.trim() || "Unnamed Product"
-  const variantTitle = variant.title?.trim()
-
-  if (!variantTitle || variantTitle === "Default Variant") {
-    return productTitle
+export async function POST(req: MedusaRequest, res: MedusaResponse) {
+  const auth = authenticatePosJwt(req as PosAuthenticatedRequest, res)
+  if (!auth) {
+    return
   }
 
-  if (variantTitle.toLowerCase() == productTitle.toLowerCase()) {
-    return productTitle
+  const requestBody = (req as PosCreateBodyCarrier).pos_product_body ?? req.body
+  const parsed = normalizeCreateProductInput(requestBody)
+  if (!parsed.success) {
+    res.status(400).json({
+      success: false,
+      message: "Invalid request format",
+      errors: parsed.error.flatten(),
+    })
+    return
   }
 
-  return `${productTitle} ${variantTitle}`.trim()
-}
+  const body = parsed.data
+  const inventoryConfigService: InventoryConfigModuleService = req.scope.resolve(
+    INVENTORY_CONFIG_MODULE
+  )
+  const restockService: RestockModuleService = req.scope.resolve(RESTOCK_MODULE)
+  const storeModuleService = req.scope.resolve(Modules.STORE)
+  const stockLocationService = req.scope.resolve(Modules.STOCK_LOCATION)
+  const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
 
-function getFirstCategoryName(product: ProductQueryRecord) {
-  for (const category of product.categories ?? []) {
-    if (category?.name) {
-      return category.name
-    }
-  }
-
-  return null
-}
-
-function getVariantInventoryStock(variant: ProductVariantQueryRecord) {
-  return (variant.inventory ?? []).reduce((inventorySum, inventoryItem) => {
-    const locationLevelTotal = (inventoryItem?.location_levels ?? []).reduce(
-      (levelSum, level) => levelSum + Number(level?.stocked_quantity ?? 0),
-      0
-    )
-
-    return inventorySum + locationLevelTotal
-  }, 0)
-}
-
-function normalizeSellingUnits(
-  rawSellingUnits: unknown,
-  variant: ProductVariantQueryRecord
-) {
-  if (Array.isArray(rawSellingUnits) && rawSellingUnits.length > 0) {
-    return rawSellingUnits
-  }
-
-  const defaultPrice = variant.price_set?.prices?.find(
-    (price) => price?.amount != null
-  )?.amount
-
-  if (defaultPrice == null) {
-    return []
-  }
-
-  return [
+  const [store] = await storeModuleService.listStores()
+  const [stockLocation] = await stockLocationService.listStockLocations(
+    {},
     {
-      unit: "item",
-      price: defaultPrice,
-      conversion_value: 1,
+      take: 1,
+    }
+  )
+
+  const primarySellingUnit = body.selling_units[0]
+  const initialStock = body.stock_remaining ?? body.purchase_value
+  const shopId = resolveShopId(req as PosAuthenticatedRequest)
+
+  const { result } = await createProductsWorkflow(req.scope).run({
+    input: {
+      products: [
+        {
+          title: body.name,
+          status: ProductStatus.PUBLISHED,
+          discountable: false,
+          metadata: {
+            pos_category: body.category ?? null,
+            pos_cost_per_purchase: body.cost_per_purchase ?? null,
+          },
+          options: [
+            {
+              title: "Unit",
+              values: [primarySellingUnit.unit],
+            },
+          ],
+          variants: [
+            {
+              title: "Default Variant",
+              manage_inventory: true,
+              options: {
+                Unit: primarySellingUnit.unit,
+              },
+              prices: [
+                {
+                  amount: primarySellingUnit.price,
+                  currency_code: "kes",
+                },
+              ],
+            },
+          ],
+          sales_channels: store?.default_sales_channel_id
+            ? [{ id: store.default_sales_channel_id }]
+            : undefined,
+        },
+      ],
     },
-  ]
-}
+  })
 
-function getConversionFactor(rawSellingUnits: unknown) {
-  if (!Array.isArray(rawSellingUnits) || rawSellingUnits.length === 0) {
-    return 1
+  const productId = result[0]?.id
+
+  const { data: createdProducts } = await query.graph({
+    entity: "product",
+    fields: [
+      "id",
+      "title",
+      "thumbnail",
+      "metadata",
+      "created_at",
+      "updated_at",
+      "variants.id",
+      "variants.title",
+      "variants.created_at",
+      "variants.updated_at",
+      "variants.inventory.id",
+      "variants.price_set.prices.amount",
+      "variants.price_set.prices.currency_code",
+    ],
+    filters: {
+      id: productId,
+    },
+  })
+
+  const createdProduct = (createdProducts as ProductQueryRecord[])[0]
+  const createdVariant = createdProduct?.variants?.find(
+    (variant): variant is ProductVariantQueryRecord => Boolean(variant?.id)
+  )
+  const inventoryItemId = createdVariant?.inventory
+    ?.find((inventoryItem) => Boolean(inventoryItem?.id))
+    ?.id
+
+  if (!createdProduct || !createdVariant) {
+    throw new Error("Created product could not be resolved")
   }
 
-  const firstUnit = rawSellingUnits[0]
-
-  if (
-    firstUnit &&
-    typeof firstUnit === "object" &&
-    "conversion_value" in firstUnit
-  ) {
-    return toNumber(firstUnit.conversion_value) ?? 1
+  if (inventoryItemId && stockLocation?.id && initialStock > 0) {
+    await createInventoryLevelsWorkflow(req.scope).run({
+      input: {
+        inventory_levels: [
+          {
+            inventory_item_id: inventoryItemId,
+            location_id: stockLocation.id,
+            stocked_quantity: initialStock,
+          },
+        ],
+      },
+    })
   }
 
-  return 1
-}
+  await inventoryConfigService.createInventoryConfigs({
+    variant_id: createdVariant.id,
+    inventory_type: body.inventory_type,
+    purchase_unit: body.purchase_unit,
+    purchase_value: body.purchase_value,
+    selling_units: body.selling_units,
+    low_stock_threshold: body.low_stock_threshold,
+    is_active: body.is_active,
+  } as unknown as Record<string, unknown>)
 
-function toNumber(value: unknown) {
-  if (value == null) {
-    return null
+  if (shopId && initialStock > 0) {
+    const totalCost = body.cost_per_purchase ?? 0
+    await restockService.createRestocks({
+      shop_id: shopId,
+      variant_id: createdVariant.id,
+      quantity_received: initialStock,
+      purchase_unit_qty: body.purchase_value,
+      cost_per_unit: body.purchase_value > 0 ? totalCost / body.purchase_value : 0,
+      total_cost: totalCost,
+      source: "manual",
+      supplier_name: "Initial stock",
+      conversion_snapshot: {
+        inventory_type: body.inventory_type,
+        purchase_unit: body.purchase_unit,
+        purchase_value: body.purchase_value,
+        selling_units: body.selling_units,
+      },
+      timestamp: new Date(),
+    } as unknown as Record<string, unknown>)
   }
 
-  if (typeof value === "number") {
-    return value
+  const normalizedProduct = {
+    id: createdProduct.id,
+    variant_id: createdVariant.id,
+    name: body.name,
+    category: body.category ?? null,
+    cost_per_purchase: body.cost_per_purchase ?? null,
+    inventory_type: body.inventory_type,
+    purchase_unit: body.purchase_unit,
+    purchase_value: body.purchase_value,
+    selling_units: body.selling_units,
+    conversion_factor: body.selling_units[0]?.conversion_value ?? 1,
+    stock_remaining: initialStock,
+    low_stock_threshold: body.low_stock_threshold,
+    is_active: body.is_active,
+    image_url: createdVariant.thumbnail ?? createdProduct.thumbnail ?? null,
+    last_synced_at: new Date().toISOString(),
+    created_at: createdVariant.created_at
+      ? new Date(createdVariant.created_at).toISOString()
+      : createdProduct.created_at
+        ? new Date(createdProduct.created_at).toISOString()
+        : null,
+    updated_at: createdVariant.updated_at
+      ? new Date(createdVariant.updated_at).toISOString()
+      : createdProduct.updated_at
+        ? new Date(createdProduct.updated_at).toISOString()
+        : null,
   }
 
-  if (
-    value &&
-    typeof value === "object" &&
-    "value" in value &&
-    typeof (value as { value?: unknown }).value === "string"
-  ) {
-    return Number((value as { value: string }).value)
-  }
-
-  const coerced = Number(value)
-  return Number.isNaN(coerced) ? null : coerced
-}
-
-function toIsoString(value: string | Date | null | undefined) {
-  if (!value) {
-    return null
-  }
-
-  if (value instanceof Date) {
-    return value.toISOString()
-  }
-
-  return new Date(value).toISOString()
+  res.status(201).json({
+    success: true,
+    product: normalizedProduct,
+  })
 }
