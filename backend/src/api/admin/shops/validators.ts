@@ -23,6 +23,7 @@ export const AdminCreateShop = z.object({
 })
 
 export const AdminListShops = z.object({
+  search: z.string().trim().min(1).optional(),
   region_code: z.string().optional(),
   ward_code: z.string().optional(),
   is_active: z
@@ -39,4 +40,27 @@ export const AdminListShops = z.object({
     .optional(),
   limit: z.coerce.number().int().positive().max(100).optional(),
   cursor: z.string().optional(),
+})
+
+export const AdminUpdateShop = z.object({
+  shop_name: z.string().min(1).optional(),
+  owner_name: z.string().min(1).nullable().optional(),
+  region_code: z.string().min(1).optional(),
+  ward_code: z.string().min(1).optional(),
+  address: z.string().nullable().optional(),
+  business_license: z.string().nullable().optional(),
+  category: z.string().nullable().optional(),
+  consent_given: z.boolean().optional(),
+  data_sharing_consent: z.boolean().optional(),
+  analytics_consent: z.boolean().optional(),
+  is_active: z.boolean().optional(),
+  mpesa_phone: z
+    .string()
+    .regex(/^254[0-9]{9}$/, "M-Pesa phone must be in format 2547XXXXXXXX")
+    .nullable()
+    .optional(),
+  mpesa_till: z.string().nullable().optional(),
+  mpesa_paybill: z.string().nullable().optional(),
+  accept_mpesa: z.boolean().optional(),
+  mpesa_display_name: z.string().max(50).nullable().optional(),
 })

@@ -46,6 +46,12 @@ module.exports = defineConfig({
       resolve: "./src/modules/audit-log",
     },
     {
+      resolve: "./src/modules/partner",
+    },
+    {
+      resolve: "./src/modules/data-export-log",
+    },
+    {
       resolve: "./src/modules/otp-challenge",
     },
   ],

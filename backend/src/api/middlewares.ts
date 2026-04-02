@@ -81,6 +81,11 @@ export default defineMiddlewares({
     },
     {
       method: ["GET"],
+      matcher: "/admin/dashboard/overview",
+      middlewares: [...adminAuthMiddlewares],
+    },
+    {
+      method: ["GET"],
       matcher: "/admin/inventory-configs",
       middlewares: [...adminAuthMiddlewares],
     },
@@ -169,8 +174,48 @@ export default defineMiddlewares({
       middlewares: [...adminAuthMiddlewares],
     },
     {
+      method: ["PATCH"],
+      matcher: "/admin/shops/*/status",
+      middlewares: [...adminAuthMiddlewares],
+    },
+    {
       method: ["GET"],
       matcher: "/admin/analytics/payments",
+      middlewares: [...adminAuthMiddlewares],
+    },
+    {
+      method: ["GET"],
+      matcher: "/admin/analytics/revenue",
+      middlewares: [...adminAuthMiddlewares],
+    },
+    {
+      method: ["GET"],
+      matcher: "/admin/analytics/products",
+      middlewares: [...adminAuthMiddlewares],
+    },
+    {
+      method: ["POST"],
+      matcher: "/admin/data-export",
+      middlewares: [...adminAuthMiddlewares],
+    },
+    {
+      method: ["GET", "POST"],
+      matcher: "/partners/admin/partners",
+      middlewares: [...adminAuthMiddlewares],
+    },
+    {
+      method: ["POST"],
+      matcher: "/partners/admin/create",
+      middlewares: [...adminAuthMiddlewares],
+    },
+    {
+      method: ["GET"],
+      matcher: "/partners/admin/logs",
+      middlewares: [...adminAuthMiddlewares],
+    },
+    {
+      method: ["GET"],
+      matcher: "/partners/admin/compliance-report",
       middlewares: [...adminAuthMiddlewares],
     },
   ],

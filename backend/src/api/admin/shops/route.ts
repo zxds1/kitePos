@@ -38,8 +38,9 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const service: ShopModuleService = req.scope.resolve(SHOP_MODULE)
   const query = AdminListShops.parse(req.query)
 
-  const limit = parseLimit(query.limit)
-  const skip = decodeCursor(query.cursor)
+  const normalizedSearch = query.search?.trim().toLowerCase()
+  const limit = normalizedSearch ? 10000 : parseLimit(query.limit)
+  const skip = normalizedSearch ? 0 : decodeCursor(query.cursor)
   const filters: Record<string, unknown> = {}
 
   if (query.region_code) {
@@ -66,9 +67,29 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     },
   })
 
+  const filteredShops = normalizedSearch
+    ? shops.filter((shop) => {
+        const haystacks = [
+          shop.shop_name,
+          shop.owner_name,
+          shop.region_code,
+          shop.ward_code,
+          shop.category,
+        ]
+
+        return haystacks.some((value) =>
+          String(value ?? "")
+            .toLowerCase()
+            .includes(normalizedSearch)
+        )
+      })
+    : shops
+
   res.json({
-    shops: shops.map((shop) => shapeShop(shop as unknown as Record<string, unknown>)),
-    ...buildCursorPage(count, limit, skip),
+    shops: filteredShops.map((shop) =>
+      shapeShop(shop as unknown as Record<string, unknown>)
+    ),
+    ...buildCursorPage(filteredShops.length, parseLimit(query.limit), normalizedSearch ? 0 : skip),
   })
 }
 
