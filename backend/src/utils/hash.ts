@@ -13,6 +13,29 @@ export function hashOtp(phone: string, otp: string): string {
     .digest("hex")
 }
 
+export function hashPin(pin: string): string {
+  return crypto
+    .createHmac("sha256", SALT)
+    .update(`pin:${pin}`)
+    .digest("hex")
+}
+
+export function hashSecret(value: string, namespace = "secret"): string {
+  return crypto
+    .createHmac("sha256", SALT)
+    .update(`${namespace}:${value}`)
+    .digest("hex")
+}
+
+export function generateNumericCode(length = 6): string {
+  const digits = "0123456789"
+  let result = ""
+  for (let index = 0; index < length; index += 1) {
+    result += digits[crypto.randomInt(0, digits.length)]
+  }
+  return result
+}
+
 export function normalizeKenyanPhone(phone: string): string {
   const digits = phone.replace(/\D/g, "")
 

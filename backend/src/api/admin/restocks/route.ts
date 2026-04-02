@@ -1,4 +1,8 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
+import {
+  authenticatePosJwt,
+  type PosAuthenticatedRequest,
+} from "../../auth/_utils/jwt"
 import { RESTOCK_MODULE } from "../../../modules/restock"
 import type RestockModuleService from "../../../modules/restock/service"
 import { AdminListRestocks } from "./validators"
@@ -7,8 +11,15 @@ import {
   decodeCursor,
   parseLimit,
 } from "../_utils/pagination"
+import { syncAggregateInventoryLevelForVariant } from "../products/_utils"
+import { canUseLocation } from "../../auth/_utils/shop-users"
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
+  const auth = authenticatePosJwt(req as PosAuthenticatedRequest, res)
+  if (!auth?.shop_id) {
+    return
+  }
+
   const service: RestockModuleService = req.scope.resolve(RESTOCK_MODULE)
 
   const query = AdminListRestocks.parse(req.query)
@@ -17,12 +28,29 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const skip = decodeCursor(query.cursor)
   const filters: Record<string, unknown> = {}
 
-  if (query.shop_id) {
-    filters.shop_id = query.shop_id
+  filters.shop_id = query.shop_id ?? auth.shop_id
+
+  if (filters.shop_id !== auth.shop_id) {
+    res.status(403).json({
+      success: false,
+      message: "Shop access denied",
+    })
+    return
   }
 
   if (query.variant_id) {
     filters.variant_id = query.variant_id
+  }
+
+  if (query.location_id) {
+    if (!canUseLocation(auth, query.location_id)) {
+      res.status(403).json({
+        success: false,
+        message: "Location access denied",
+      })
+      return
+    }
+    filters.location_id = query.location_id
   }
 
   if (query.source) {
@@ -51,11 +79,38 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 }
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
+  const auth = authenticatePosJwt(req as PosAuthenticatedRequest, res)
+  if (!auth?.shop_id) {
+    return
+  }
+
+  const payload = req.validatedBody as Record<string, unknown>
+  const shopId = typeof payload["shop_id"] === "string" ? payload["shop_id"] : null
+  const locationId =
+    typeof payload["location_id"] === "string" ? payload["location_id"] : null
+
+  if (!shopId || shopId !== auth.shop_id) {
+    res.status(403).json({ success: false, message: "Shop access denied" })
+    return
+  }
+
+  if (locationId && !canUseLocation(auth, locationId)) {
+    res.status(403).json({ success: false, message: "Location access denied" })
+    return
+  }
+
   const service: RestockModuleService = req.scope.resolve(RESTOCK_MODULE)
 
   const restock = await service.createRestocks(
-    req.validatedBody as Record<string, unknown>
+    payload
   )
+
+  const variantId =
+    typeof payload["variant_id"] === "string" ? payload["variant_id"] : null
+
+  if (shopId && variantId) {
+    await syncAggregateInventoryLevelForVariant(req, shopId, variantId)
+  }
 
   res.status(200).json({ restock })
 }

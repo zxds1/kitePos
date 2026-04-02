@@ -6,7 +6,10 @@ const SaleSnapshot = model.define("sale_snapshot", {
   order_id: model.text(),
   line_item_id: model.text(),
   shop_id: model.text(),
+  location_id: model.text().nullable(),
+  terminal_id: model.text().nullable(),
   variant_id: model.text(),
+  sales_channel: model.text().default("pos"),
 
   // Conversion Details
   inventory_type: model.text(),

@@ -3,6 +3,7 @@ import { model } from "@medusajs/framework/utils"
 const Adjustment = model.define("adjustment", {
   id: model.id().primaryKey(),
   shop_id: model.text(),
+  location_id: model.text().nullable(),
   variant_id: model.text(),
   adjustment_type: model.enum([
     "correction",

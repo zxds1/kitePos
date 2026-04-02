@@ -17,7 +17,13 @@ import {
   CreateProductSchema,
   ListProductsSchema,
 } from "./validator"
-import { listNormalizedProducts, resolveShopId } from "./_utils"
+import {
+  getIdempotencyKey,
+  getNormalizedProductByCreateIdempotencyKey,
+  listNormalizedProducts,
+  resolveShopId,
+} from "./_utils"
+import { getDefaultShopLocation } from "../../pos/_utils/shop-locations"
 import type {
   ProductQueryRecord,
   ProductVariantQueryRecord,
@@ -108,9 +114,14 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   )
 
   const products = await listNormalizedProducts(req, { shopId })
+  const locationId = query.location_id?.trim() || null
+  const locationScopedProducts = await listNormalizedProducts(req, {
+    shopId,
+    locationId,
+  })
   const search = query.search?.trim().toLowerCase()
 
-  const filtered = products
+  const filtered = locationScopedProducts
     .filter((product) =>
       query.inventory_type ? product.inventory_type === query.inventory_type : true
     )
@@ -178,6 +189,35 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const primarySellingUnit = body.selling_units[0]
   const initialStock = body.stock_remaining ?? body.purchase_value
   const shopId = resolveShopId(req as PosAuthenticatedRequest)
+  if (!shopId) {
+    res.status(400).json({
+      success: false,
+      message: "shop_id is required for POS product operations",
+    })
+    return
+  }
+  const idempotencyKey = getIdempotencyKey(req)
+  const location = await getDefaultShopLocation(
+    req.scope,
+    shopId,
+    body.location_id?.trim() || null
+  )
+
+  if (idempotencyKey) {
+    const existingProduct = await getNormalizedProductByCreateIdempotencyKey(
+      req,
+      idempotencyKey,
+      shopId
+    )
+
+    if (existingProduct) {
+      res.status(200).json({
+        success: true,
+        product: existingProduct,
+      })
+      return
+    }
+  }
 
   const { result } = await createProductsWorkflow(req.scope).run({
     input: {
@@ -189,6 +229,9 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
           metadata: {
             pos_category: body.category ?? null,
             pos_cost_per_purchase: body.cost_per_purchase ?? null,
+            pos_create_idempotency_key: idempotencyKey,
+            pos_shop_id: shopId ?? null,
+            pos_default_location_id: location?.id ?? null,
           },
           options: [
             {
@@ -270,6 +313,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   }
 
   await inventoryConfigService.createInventoryConfigs({
+    shop_id: shopId,
     variant_id: createdVariant.id,
     inventory_type: body.inventory_type,
     purchase_unit: body.purchase_unit,
@@ -279,17 +323,20 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     is_active: body.is_active,
   } as unknown as Record<string, unknown>)
 
-  if (shopId && initialStock > 0) {
+  if (initialStock > 0) {
     const totalCost = body.cost_per_purchase ?? 0
     await restockService.createRestocks({
       shop_id: shopId,
+      location_id: location?.id ?? null,
       variant_id: createdVariant.id,
       quantity_received: initialStock,
       purchase_unit_qty: body.purchase_value,
       cost_per_unit: body.purchase_value > 0 ? totalCost / body.purchase_value : 0,
       total_cost: totalCost,
+      idempotency_key: idempotencyKey,
       source: "manual",
       supplier_name: "Initial stock",
+      sales_channel: "pos",
       conversion_snapshot: {
         inventory_type: body.inventory_type,
         purchase_unit: body.purchase_unit,
@@ -303,6 +350,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const normalizedProduct = {
     id: createdProduct.id,
     variant_id: createdVariant.id,
+    location_id: location?.id ?? null,
     name: body.name,
     category: body.category ?? null,
     cost_per_purchase: body.cost_per_purchase ?? null,

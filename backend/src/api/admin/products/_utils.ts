@@ -3,6 +3,8 @@ import {
   Modules,
 } from "@medusajs/framework/utils"
 import type { MedusaRequest } from "@medusajs/framework/http"
+import type { MedusaContainer } from "@medusajs/framework/types"
+import { updateInventoryLevelsWorkflow } from "@medusajs/medusa/core-flows"
 import { INVENTORY_CONFIG_MODULE } from "../../../modules/inventory-config"
 import type InventoryConfigModuleService from "../../../modules/inventory-config/service"
 import { calculateServerStock } from "../inventory/_utils/stock"
@@ -12,6 +14,7 @@ export type ProductQueryRecord = {
   title?: string | null
   thumbnail?: string | null
   metadata?: Record<string, unknown> | null
+  deleted_at?: string | Date | null
   categories?: Array<{ name?: string | null } | null> | null
   created_at?: string | Date | null
   updated_at?: string | Date | null
@@ -42,6 +45,7 @@ export type ProductVariantQueryRecord = {
 
 export type InventoryConfigRecord = {
   id?: string
+  shop_id?: string | null
   variant_id: string
   inventory_type?: string | null
   purchase_unit?: string | null
@@ -56,6 +60,7 @@ export type InventoryConfigRecord = {
 export type NormalizedPosProduct = {
   id: string
   variant_id: string
+  location_id: string | null
   name: string
   category: string | null
   cost_per_purchase: number | null
@@ -77,6 +82,7 @@ export async function listNormalizedProducts(
   req: MedusaRequest,
   options: {
     shopId?: string | null
+    locationId?: string | null
     variantId?: string
   } = {}
 ): Promise<NormalizedPosProduct[]> {
@@ -93,6 +99,7 @@ export async function listNormalizedProducts(
         "title",
         "thumbnail",
         "metadata",
+        "deleted_at",
         "categories.name",
         "created_at",
         "updated_at",
@@ -110,7 +117,7 @@ export async function listNormalizedProducts(
       ],
     }),
     inventoryConfigService.listInventoryConfigs(
-      {},
+      options.shopId ? { shop_id: options.shopId } : {},
       {
         take: 1000,
         order: { created_at: "DESC" },
@@ -121,13 +128,23 @@ export async function listNormalizedProducts(
   const inventoryConfigByVariant = new Map<string, InventoryConfigRecord>()
 
   for (const config of inventoryConfigs as unknown as InventoryConfigRecord[]) {
+    if (
+      options.shopId &&
+      config.shop_id != null &&
+      config.shop_id !== options.shopId
+    ) {
+      continue
+    }
+
     if (!inventoryConfigByVariant.has(config.variant_id)) {
       inventoryConfigByVariant.set(config.variant_id, config)
     }
   }
 
   const products = await Promise.all(
-    (data as ProductQueryRecord[]).flatMap((product) =>
+    (data as ProductQueryRecord[])
+      .filter((product) => product.deleted_at == null)
+      .flatMap((product) =>
       (product.variants ?? [])
         .filter(
           (variant): variant is ProductVariantQueryRecord =>
@@ -136,13 +153,23 @@ export async function listNormalizedProducts(
         )
         .map(async (variant) => {
           const inventoryConfig = inventoryConfigByVariant.get(variant.id)
+          if (!inventoryConfig) {
+            return null
+          }
+
           const stockRemaining = options.shopId
-            ? await calculateServerStock(req.scope, options.shopId, variant.id)
+            ? await calculateServerStock(
+                req.scope,
+                options.shopId,
+                variant.id,
+                options.locationId
+              )
             : getVariantInventoryStock(variant)
 
           return {
             id: product.id,
             variant_id: variant.id,
+            location_id: options.locationId ?? null,
             name: buildProductName(product, variant),
             category: getCategoryName(product),
             cost_per_purchase: getMetadataNumber(
@@ -179,7 +206,7 @@ export async function listNormalizedProducts(
     )
   )
 
-  return products
+  return products.filter((product): product is NormalizedPosProduct => product != null)
 }
 
 export async function getNormalizedProductByVariantId(
@@ -191,15 +218,58 @@ export async function getNormalizedProductByVariantId(
   return products[0] ?? null
 }
 
+export async function getNormalizedProductByCreateIdempotencyKey(
+  req: MedusaRequest,
+  idempotencyKey: string,
+  shopId?: string | null
+) {
+  const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
+  const { data } = await query.graph({
+    entity: "product",
+    fields: ["variants.id", "metadata", "deleted_at"],
+  })
+
+  for (const product of data as ProductQueryRecord[]) {
+    if (product.deleted_at != null) {
+      continue
+    }
+
+    if (product.metadata?.["pos_create_idempotency_key"] !== idempotencyKey) {
+      continue
+    }
+
+    if (
+      shopId &&
+      product.metadata?.["pos_shop_id"] != null &&
+      product.metadata?.["pos_shop_id"] !== shopId
+    ) {
+      continue
+    }
+
+    const variantId = product.variants?.find((variant) => Boolean(variant?.id))?.id
+    if (!variantId) {
+      continue
+    }
+
+    return getNormalizedProductByVariantId(req, variantId, shopId)
+  }
+
+  return null
+}
+
 export async function getInventoryConfigByVariantId(
   req: MedusaRequest,
-  variantId: string
+  variantId: string,
+  shopId?: string | null
 ) {
   const inventoryConfigService: InventoryConfigModuleService = req.scope.resolve(
     INVENTORY_CONFIG_MODULE
   )
   const [config] = await inventoryConfigService.listInventoryConfigs(
-    { variant_id: variantId },
+    {
+      variant_id: variantId,
+      ...(shopId ? { shop_id: shopId } : {}),
+    },
     { take: 1 }
   )
 
@@ -218,6 +288,7 @@ export async function getProductAndVariantByVariantId(
       "title",
       "thumbnail",
       "metadata",
+      "deleted_at",
       "created_at",
       "updated_at",
       "variants.id",
@@ -230,6 +301,10 @@ export async function getProductAndVariantByVariantId(
   })
 
   for (const product of data as ProductQueryRecord[]) {
+    if (product.deleted_at != null) {
+      continue
+    }
+
     for (const variant of product.variants ?? []) {
       if (variant?.id === variantId) {
         return {
@@ -255,9 +330,40 @@ export function resolveShopId(req: MedusaRequest & { auth_context?: { shop_id?: 
   return null
 }
 
-export async function getPrimaryStockLevelContext(req: MedusaRequest, variantId: string) {
-  const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
-  const stockLocationService = req.scope.resolve(Modules.STOCK_LOCATION)
+export function getIdempotencyKey(req: MedusaRequest) {
+  const rawHeader =
+    req.headers["idempotency-key"] ?? req.headers["Idempotency-Key"]
+
+  if (Array.isArray(rawHeader)) {
+    const value = rawHeader.find(
+      (item): item is string => typeof item === "string" && item.trim().length > 0
+    )
+
+    return value?.trim() ?? null
+  }
+
+  return typeof rawHeader === "string" && rawHeader.trim().length > 0
+    ? rawHeader.trim()
+    : null
+}
+
+type ContainerLike = MedusaRequest | MedusaContainer | { scope: MedusaContainer }
+
+function resolveContainer(target: ContainerLike) {
+  if ("scope" in target && target.scope) {
+    return target.scope
+  }
+
+  return target as MedusaContainer
+}
+
+export async function getPrimaryStockLevelContext(
+  target: ContainerLike,
+  variantId: string
+) {
+  const container = resolveContainer(target)
+  const query = container.resolve(ContainerRegistrationKeys.QUERY)
+  const stockLocationService = container.resolve(Modules.STOCK_LOCATION)
   const [stockLocation] = await stockLocationService.listStockLocations({}, { take: 1 })
 
   const { data } = await query.graph({
@@ -302,6 +408,36 @@ export async function getPrimaryStockLevelContext(req: MedusaRequest, variantId:
     location_id: stockLocation?.id ?? null,
     stocked_quantity: 0,
   }
+}
+
+export async function syncAggregateInventoryLevelForVariant(
+  target: ContainerLike,
+  shopId: string,
+  variantId: string
+) {
+  const container = resolveContainer(target)
+  const stockLevel = await getPrimaryStockLevelContext(container, variantId)
+  if (
+    !stockLevel.inventory_level_id ||
+    !stockLevel.inventory_item_id ||
+    !stockLevel.location_id
+  ) {
+    return
+  }
+
+  const aggregateStock = await calculateServerStock(container, shopId, variantId)
+  await updateInventoryLevelsWorkflow(container).run({
+    input: {
+      updates: [
+        {
+          id: stockLevel.inventory_level_id,
+          inventory_item_id: stockLevel.inventory_item_id,
+          location_id: stockLevel.location_id,
+          stocked_quantity: aggregateStock,
+        },
+      ],
+    },
+  })
 }
 
 export function buildProductName(

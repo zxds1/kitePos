@@ -3,27 +3,16 @@ import { OTP_CHALLENGE_MODULE } from "../../../modules/otp-challenge"
 import type OtpChallengeModuleService from "../../../modules/otp-challenge/service"
 import { SHOP_MODULE } from "../../../modules/shop"
 import type ShopModuleService from "../../../modules/shop/service"
+import { SHOP_USER_MODULE } from "../../../modules/shop-user"
+import type ShopUserModuleService from "../../../modules/shop-user/service"
 import { issuePosAuthTokens } from "../_utils/jwt"
 import { resolveShopAuthState } from "../_utils/shop-auth"
 import { hashOtp, hashPhone } from "../../../utils/hash"
 import { AuthVerifyOtp } from "../validators"
-
-function shapeShop(shop: Record<string, unknown>) {
-  return {
-    id: shop.id,
-    shop_name: shop.shop_name,
-    region_code: shop.region_code,
-    ward_code: shop.ward_code,
-    consent_given: shop.consent_given,
-    consent_timestamp: shop.consent_timestamp,
-    is_active: shop.is_active,
-    mpesa_phone: shop.mpesa_phone,
-    mpesa_till: shop.mpesa_till,
-    mpesa_paybill: shop.mpesa_paybill,
-    accept_mpesa: shop.accept_mpesa,
-    mpesa_display_name: shop.mpesa_display_name,
-  }
-}
+import { listShopLocations } from "../../pos/_utils/shop-locations"
+import { shapeShopUser } from "../_utils/shop-users"
+import { randomUUID } from "node:crypto"
+import { shapeShop } from "../_utils/shape-shop"
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const otpChallengeService: OtpChallengeModuleService = req.scope.resolve(
@@ -71,20 +60,80 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     },
   ])
 
-  const shopState = await resolveShopAuthState(shopService, phoneHash)
+  const shopState = await resolveShopAuthState(req.scope, shopService, phoneHash)
   const shopRecord = shopState.shop ?? undefined
   const consentGiven = shopState.isRegistered
+  let currentUser = shopState.user
+  if (!currentUser && shopRecord && typeof shopRecord.id === "string") {
+    currentUser = (await req.scope
+      .resolve<ShopUserModuleService>(SHOP_USER_MODULE)
+      .createShopUsers({
+        id: `user_${randomUUID().replace(/-/g, "").slice(0, 24)}`,
+        shop_id: shopRecord.id,
+        phone_hash: phoneHash,
+        full_name: shopRecord.owner_name ?? null,
+        role: "owner",
+        assigned_location_ids: [],
+        assigned_terminal_ids: [],
+        is_active: true,
+        last_login_at: new Date(),
+      } as unknown as Record<string, unknown>)) as never
+  }
+  const allLocations =
+    shopRecord && typeof shopRecord.id === "string"
+      ? await listShopLocations(req.scope, shopRecord.id)
+      : []
+  const assignedLocationIds =
+    currentUser?.assigned_location_ids &&
+    Array.isArray(currentUser.assigned_location_ids)
+      ? currentUser.assigned_location_ids
+          .filter((entry): entry is string => typeof entry === "string")
+      : []
+  const assignedTerminalIds =
+    currentUser?.assigned_terminal_ids &&
+    Array.isArray(currentUser.assigned_terminal_ids)
+      ? currentUser.assigned_terminal_ids
+          .filter((entry): entry is string => typeof entry === "string")
+      : []
+  const locations =
+    !currentUser || currentUser.role === "owner" || currentUser.role === "admin"
+      ? allLocations
+      : allLocations.filter((location) => assignedLocationIds.includes(location.id))
+
   const tokens = issuePosAuthTokens({
     phone_number: body.phone_number,
     shop_id: typeof shopRecord?.id === "string" ? shopRecord.id : null,
     is_registered: consentGiven,
+    user_id: currentUser?.id ?? null,
+    role: currentUser?.role ?? null,
+    assigned_location_ids: assignedLocationIds,
+    assigned_terminal_ids: assignedTerminalIds,
   })
+
+  if (currentUser?.id) {
+    await req.scope
+      .resolve<ShopUserModuleService>(SHOP_USER_MODULE)
+      .updateShopUsers({
+        id: currentUser.id,
+        last_login_at: new Date(),
+      } as unknown as Record<string, unknown>)
+  }
 
   res.status(200).json({
     success: true,
     is_registered: consentGiven,
     ...tokens,
+    user_id: currentUser?.id ?? null,
+    role: currentUser?.role ?? null,
+    assigned_location_ids: assignedLocationIds,
+    assigned_terminal_ids: assignedTerminalIds,
     next_step: consentGiven ? "home" : "register_shop",
-    shop: shopRecord ? shapeShop(shopRecord) : null,
+    shop: shopRecord
+      ? {
+          ...shapeShop(shopRecord),
+          locations,
+          current_user: currentUser ? shapeShopUser(currentUser) : null,
+        }
+      : null,
   })
 }

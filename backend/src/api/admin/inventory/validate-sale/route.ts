@@ -1,47 +1,47 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-import { ADJUSTMENT_MODULE } from "../../../../modules/adjustment"
-import type AdjustmentModuleService from "../../../../modules/adjustment/service"
-import { INVENTORY_CONFIG_MODULE } from "../../../../modules/inventory-config"
-import type InventoryConfigModuleService from "../../../../modules/inventory-config/service"
-import { RESTOCK_MODULE } from "../../../../modules/restock"
-import type RestockModuleService from "../../../../modules/restock/service"
-import { SALE_SNAPSHOT_MODULE } from "../../../../modules/sale-snapshot"
-import type SaleSnapshotModuleService from "../../../../modules/sale-snapshot/service"
+import {
+  authenticatePosJwt,
+  type PosAuthenticatedRequest,
+} from "../../../auth/_utils/jwt"
 import {
   calculateServerStock,
   numbersMatch,
 } from "../_utils/stock"
+import { getInventoryConfigByVariantId } from "../../products/_utils"
 import { AdminValidateSaleRequest } from "./validator"
 import {
   calculateDeduction,
   validateStock,
 } from "../../../../utils/inventory-math"
 import type { InventoryType, SellingUnit } from "../../../../types/inventory"
+import { canUseLocation } from "../../../auth/_utils/shop-users"
 
 function normalizeNumber(value: number, precision = 4) {
   return Number(value.toFixed(precision))
 }
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
-  const inventoryConfigService: InventoryConfigModuleService =
-    req.scope.resolve(INVENTORY_CONFIG_MODULE)
-  const restockService: RestockModuleService =
-    req.scope.resolve(RESTOCK_MODULE)
-  const saleSnapshotService: SaleSnapshotModuleService =
-    req.scope.resolve(SALE_SNAPSHOT_MODULE)
-  const adjustmentService: AdjustmentModuleService =
-    req.scope.resolve(ADJUSTMENT_MODULE)
+  const auth = authenticatePosJwt(req as PosAuthenticatedRequest, res)
+  if (!auth?.shop_id) {
+    return
+  }
 
   const validated = AdminValidateSaleRequest.parse(req.validatedBody)
 
-  const [config] = await inventoryConfigService.listInventoryConfigs(
-    { variant_id: validated.variant_id },
-    {
-      take: 1,
-      order: {
-        created_at: "DESC",
-      },
-    }
+  if (validated.shop_id !== auth.shop_id) {
+    res.status(403).json({ message: "Shop access denied" })
+    return
+  }
+
+  if (validated.location_id && !canUseLocation(auth, validated.location_id)) {
+    res.status(403).json({ message: "Location access denied" })
+    return
+  }
+
+  const config = await getInventoryConfigByVariantId(
+    req,
+    validated.variant_id,
+    validated.shop_id
   )
 
   if (!config) {
@@ -59,7 +59,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const serverStock = await calculateServerStock(
     req.scope,
     validated.shop_id,
-    validated.variant_id
+    validated.variant_id,
+    validated.location_id
   )
 
   const currentStock =

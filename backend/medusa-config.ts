@@ -19,6 +19,15 @@ module.exports = defineConfig({
       resolve: "./src/modules/shop",
     },
     {
+      resolve: "./src/modules/shop-user",
+    },
+    {
+      resolve: "./src/modules/shop-location",
+    },
+    {
+      resolve: "./src/modules/shop-terminal",
+    },
+    {
       resolve: "./src/modules/inventory-config",
     },
     {
@@ -29,6 +38,12 @@ module.exports = defineConfig({
     },
     {
       resolve: "./src/modules/adjustment",
+    },
+    {
+      resolve: "./src/modules/analytics-snapshot",
+    },
+    {
+      resolve: "./src/modules/audit-log",
     },
     {
       resolve: "./src/modules/otp-challenge",

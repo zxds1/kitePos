@@ -3,7 +3,9 @@ import { model } from "@medusajs/framework/utils"
 const Restock = model.define("restock", {
   id: model.id().primaryKey(),
   shop_id: model.text(),
+  location_id: model.text().nullable(),
   variant_id: model.text(),
+  idempotency_key: model.text().nullable(),
 
   // Quantity
   quantity_received: model.bigNumber(),
@@ -22,6 +24,7 @@ const Restock = model.define("restock", {
   receipt_image_url: model.text().nullable(),
   receipt_raw_text: model.text().nullable(),
   supplier_name: model.text().nullable(),
+  sales_channel: model.text().default("pos"),
 
   // Snapshot
   conversion_snapshot: model.json(),

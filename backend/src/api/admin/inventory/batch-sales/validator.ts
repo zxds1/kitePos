@@ -13,6 +13,8 @@ const BatchSaleItem = z.object({
   order_id: z.string().optional(),
   variant_id: z.string().min(1),
   shop_id: z.string().min(1),
+  location_id: z.string().optional(),
+  terminal_id: z.string().optional(),
   inventory_type: InventoryTypeSchema,
   unit_sold: z.string().min(1),
   quantity_sold: z.number().int().positive().default(1),
@@ -30,6 +32,8 @@ const BatchSaleItem = z.object({
 
 export const AdminBatchSalesRequest = z.object({
   shop_id: z.string().min(1),
+  location_id: z.string().optional(),
+  terminal_id: z.string().optional(),
   sales: z.array(BatchSaleItem).min(1).max(100),
   sync_metadata: z
     .object({

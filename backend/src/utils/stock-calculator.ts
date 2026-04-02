@@ -38,7 +38,8 @@ export function resolveStockServices(container: MedusaContainer) {
 export async function calculateServerStock(
   container: MedusaContainer | MedusaRequest["scope"],
   shopId: string,
-  variantId: string
+  variantId: string,
+  locationId?: string | null
 ): Promise<number> {
   const { adjustmentService, restockService, saleSnapshotService } =
     resolveStockServices(container as MedusaContainer)
@@ -46,14 +47,17 @@ export async function calculateServerStock(
   const [restocks, saleSnapshots, adjustments] = await Promise.all([
     restockService.listRestocks({
       shop_id: shopId,
+      ...(locationId ? { location_id: locationId } : {}),
       variant_id: variantId,
     }),
     saleSnapshotService.listSaleSnapshots({
       shop_id: shopId,
+      ...(locationId ? { location_id: locationId } : {}),
       variant_id: variantId,
     }),
     adjustmentService.listAdjustments({
       shop_id: shopId,
+      ...(locationId ? { location_id: locationId } : {}),
       variant_id: variantId,
     }),
   ])

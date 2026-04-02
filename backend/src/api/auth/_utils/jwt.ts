@@ -5,6 +5,10 @@ export type PosAuthTokenPayload = {
   phone_number: string
   shop_id: string | null
   is_registered: boolean
+  user_id?: string | null
+  role?: "owner" | "admin" | "branch_manager" | "cashier" | null
+  assigned_location_ids?: string[]
+  assigned_terminal_ids?: string[]
   actor_id?: string
   actor_type?: "user" | "api-key"
   auth_identity_id?: string
@@ -26,7 +30,7 @@ function getJwtSecret() {
 
 export function issuePosAuthTokens(payload: PosAuthTokenPayload) {
   const secret = getJwtSecret()
-  const actorId = payload.shop_id || payload.phone_number
+  const actorId = payload.user_id || payload.shop_id || payload.phone_number
   const authPayload = {
     ...payload,
     actor_id: actorId,

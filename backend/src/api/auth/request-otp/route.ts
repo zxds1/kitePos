@@ -20,7 +20,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const phoneHash = hashPhone(phoneNumber)
   const otp = process.env.DEV_OTP_CODE ?? randomInt(1000, 10000).toString()
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000)
-  const shopState = await resolveShopAuthState(shopService, phoneHash)
+  const shopState = await resolveShopAuthState(req.scope, shopService, phoneHash)
 
   await otpChallengeService.createOtpChallenges({
     id: `otp_${randomUUID().replace(/-/g, "").slice(0, 24)}`,

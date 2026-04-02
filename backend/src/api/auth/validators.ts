@@ -25,6 +25,24 @@ export const AuthVerifyOtp = z.object({
   otp: z.string().regex(/^[0-9]{4}$/, "OTP must be exactly 4 digits"),
 })
 
+export const AuthLoginPin = z.object({
+  phone_number: KenyanPhone,
+  pin: z.string().regex(/^[0-9]{4,8}$/, "PIN must be 4 to 8 digits"),
+  device_id: z.string().min(8, "Device id is required"),
+})
+
+export const AuthChangePin = z.object({
+  pin: z.string().regex(/^[0-9]{4,8}$/, "PIN must be 4 to 8 digits"),
+  device_id: z.string().min(8, "Device id is required"),
+})
+
+export const AuthRecoverStaffAccess = z.object({
+  phone_number: KenyanPhone,
+  recovery_code: z.string().regex(/^[0-9]{6}$/, "Recovery code must be 6 digits"),
+  new_pin: z.string().regex(/^[0-9]{4,8}$/, "PIN must be 4 to 8 digits"),
+  device_id: z.string().min(8, "Device id is required"),
+})
+
 export const AuthRegisterShop = z.object({
   shop_name: z.string().min(1),
   owner_phone: KenyanPhone,

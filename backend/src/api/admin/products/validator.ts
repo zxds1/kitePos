@@ -16,6 +16,7 @@ export const SellingUnitSchema = z.object({
 
 export const ListProductsSchema = z.object({
   shop_id: z.string().optional(),
+  location_id: z.string().optional(),
   inventory_type: InventoryTypeSchema.optional(),
   is_active: z
     .union([z.boolean(), z.enum(["true", "false"])])
@@ -34,6 +35,7 @@ export const ListProductsSchema = z.object({
 
 export const CreateProductSchema = z.object({
   name: z.string().min(1),
+  location_id: z.string().optional(),
   category: z.string().min(1).optional(),
   inventory_type: InventoryTypeSchema.default("discrete"),
   purchase_unit: z.string().min(1).default("Unit"),
@@ -72,4 +74,5 @@ export const AdjustStockSchema = z.object({
   quantity: z.number().positive(),
   reason: z.string().optional(),
   shop_id: z.string().optional(),
+  location_id: z.string().optional(),
 })

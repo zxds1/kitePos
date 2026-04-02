@@ -23,6 +23,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   }
 
   const variantId = req.params.id
+  const locationId =
+    typeof req.query.location_id === "string" ? req.query.location_id : undefined
   const shopId = resolveShopId(
     req as PosAuthenticatedRequest,
     typeof req.query.shop_id === "string" ? req.query.shop_id : undefined
@@ -46,15 +48,27 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
   const [restocks, sales, adjustments] = await Promise.all([
     restockService.listRestocks(
-      { shop_id: shopId, variant_id: variantId },
+      {
+        shop_id: shopId,
+        ...(locationId ? { location_id: locationId } : {}),
+        variant_id: variantId,
+      },
       { take: 200, order: { timestamp: "DESC" } }
     ),
     saleSnapshotService.listSaleSnapshots(
-      { shop_id: shopId, variant_id: variantId },
+      {
+        shop_id: shopId,
+        ...(locationId ? { location_id: locationId } : {}),
+        variant_id: variantId,
+      },
       { take: 200, order: { timestamp: "DESC" } }
     ),
     adjustmentService.listAdjustments(
-      { shop_id: shopId, variant_id: variantId },
+      {
+        shop_id: shopId,
+        ...(locationId ? { location_id: locationId } : {}),
+        variant_id: variantId,
+      },
       { take: 200, order: { timestamp: "DESC" } }
     ),
   ])

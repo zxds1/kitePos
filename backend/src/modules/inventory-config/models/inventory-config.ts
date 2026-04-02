@@ -2,6 +2,7 @@ import { model } from "@medusajs/framework/utils"
 
 const InventoryConfig = model.define("inventory_config", {
   id: model.id().primaryKey(),
+  shop_id: model.text().nullable(),
   variant_id: model.text(),
 
   // Core Type

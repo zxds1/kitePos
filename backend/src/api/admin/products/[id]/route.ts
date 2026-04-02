@@ -54,6 +54,14 @@ export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
   }
 
   const variantId = req.params.id
+  const shopId = resolveShopId(req as PosAuthenticatedRequest)
+  if (!shopId) {
+    res.status(400).json({
+      success: false,
+      message: "shop_id is required for POS product operations",
+    })
+    return
+  }
   const inventoryConfigService: InventoryConfigModuleService = req.scope.resolve(
     INVENTORY_CONFIG_MODULE
   )
@@ -67,7 +75,7 @@ export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
     return
   }
 
-  const inventoryConfig = await getInventoryConfigByVariantId(req, variantId)
+  const inventoryConfig = await getInventoryConfigByVariantId(req, variantId, shopId)
   if (!inventoryConfig?.id) {
     res.status(404).json({
       success: false,
@@ -141,7 +149,6 @@ export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
     },
   ] as unknown as Record<string, unknown>[])
 
-  const shopId = resolveShopId(req as PosAuthenticatedRequest)
   const product = await getNormalizedProductByVariantId(req, variantId, shopId)
 
   res.status(200).json({
@@ -159,7 +166,20 @@ export async function DELETE(req: MedusaRequest, res: MedusaResponse) {
   const inventoryConfigService: InventoryConfigModuleService = req.scope.resolve(
     INVENTORY_CONFIG_MODULE
   )
-  const inventoryConfig = await getInventoryConfigByVariantId(req, req.params.id)
+  const shopId = resolveShopId(req as PosAuthenticatedRequest)
+  if (!shopId) {
+    res.status(400).json({
+      success: false,
+      message: "shop_id is required for POS product operations",
+    })
+    return
+  }
+
+  const inventoryConfig = await getInventoryConfigByVariantId(
+    req,
+    req.params.id,
+    shopId
+  )
 
   if (!inventoryConfig?.id) {
     res.status(404).json({

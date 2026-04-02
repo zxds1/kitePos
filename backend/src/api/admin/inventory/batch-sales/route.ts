@@ -1,4 +1,8 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
+import {
+  authenticatePosJwt,
+  type PosAuthenticatedRequest,
+} from "../../../auth/_utils/jwt"
 import { INVENTORY_CONFIG_MODULE } from "../../../../modules/inventory-config"
 import type InventoryConfigModuleService from "../../../../modules/inventory-config/service"
 import { SALE_SNAPSHOT_MODULE } from "../../../../modules/sale-snapshot"
@@ -8,6 +12,7 @@ import {
   isPostgresUniqueViolation,
   isRetryableSyncError,
 } from "../../_utils/idempotency"
+import { syncAggregateInventoryLevelForVariant } from "../../products/_utils"
 import {
   AdminBatchSalesRequest,
   type BatchSaleConflict,
@@ -17,6 +22,8 @@ import {
 import { calculateDeduction, validateStock } from "../../../../utils/inventory-math"
 import { calculateServerStock } from "../../../../utils/stock-calculator"
 import type { InventoryType, SellingUnit } from "../../../../types/inventory"
+import { canUseLocation } from "../../../auth/_utils/shop-users"
+import { canUseTerminal, listShopTerminals } from "../../../pos/_utils/terminals"
 
 async function findExistingOfflineSnapshot(
   saleSnapshotService: SaleSnapshotModuleService,
@@ -42,6 +49,11 @@ export async function POST(
   req: MedusaRequest,
   res: MedusaResponse<BatchSalesResponse>
 ) {
+  const auth = authenticatePosJwt(req as PosAuthenticatedRequest, res)
+  if (!auth?.shop_id) {
+    return
+  }
+
   const saleSnapshotService: SaleSnapshotModuleService = req.scope.resolve(
     SALE_SNAPSHOT_MODULE
   )
@@ -49,6 +61,53 @@ export async function POST(
     req.scope.resolve(INVENTORY_CONFIG_MODULE)
 
   const validated = AdminBatchSalesRequest.parse(req.validatedBody)
+
+  if (validated.shop_id !== auth.shop_id) {
+    res.status(403).json({
+      shop_id: validated.shop_id,
+      processed: 0,
+      results: [],
+      payment_summary: {
+        cash_count: 0,
+        mpesa_count: 0,
+        mpesa_total: 0,
+      },
+    })
+    return
+  }
+
+  const requestedLocationId = validated.location_id ?? null
+  if (requestedLocationId && !canUseLocation(auth, requestedLocationId)) {
+    res.status(403).json({
+      shop_id: validated.shop_id,
+      processed: 0,
+      results: [],
+      payment_summary: {
+        cash_count: 0,
+        mpesa_count: 0,
+        mpesa_total: 0,
+      },
+    })
+    return
+  }
+  const terminals = await listShopTerminals(req.scope, validated.shop_id)
+  const requestedTerminalId = validated.terminal_id ?? null
+  if (requestedTerminalId) {
+    const requestedTerminal = terminals.find((terminal) => terminal.id === requestedTerminalId)
+    if (!requestedTerminal || !canUseTerminal(auth, requestedTerminal)) {
+      res.status(403).json({
+        shop_id: validated.shop_id,
+        processed: 0,
+        results: [],
+        payment_summary: {
+          cash_count: 0,
+          mpesa_count: 0,
+          mpesa_total: 0,
+        },
+      })
+      return
+    }
+  }
 
   const results: BatchSaleResult[] = []
   const paymentSummary = {
@@ -58,9 +117,42 @@ export async function POST(
   }
 
   const stockCache = new Map<string, number>()
+  const touchedVariants = new Set<string>()
 
   for (const sale of validated.sales) {
     try {
+      if (sale.shop_id !== validated.shop_id) {
+        throw new Error(
+          `Shop mismatch for ${sale.client_transaction_id}: payload shop_id must match batch shop_id`
+        )
+      }
+
+      if ((sale.location_id ?? validated.location_id ?? null) != (validated.location_id ?? null)) {
+        throw new Error(
+          `Location mismatch for ${sale.client_transaction_id}: payload location_id must match batch location_id`
+        )
+      }
+      if ((sale.terminal_id ?? validated.terminal_id ?? null) != (validated.terminal_id ?? null)) {
+        throw new Error(
+          `Checkout mismatch for ${sale.client_transaction_id}: payload terminal_id must match batch terminal_id`
+        )
+      }
+
+      const saleLocationId = sale.location_id ?? validated.location_id ?? null
+      const saleTerminalId = sale.terminal_id ?? validated.terminal_id ?? null
+      if (saleLocationId && !canUseLocation(auth, saleLocationId)) {
+        throw new Error(`Location access denied for ${sale.client_transaction_id}`)
+      }
+      if (saleTerminalId) {
+        const saleTerminal = terminals.find((terminal) => terminal.id === saleTerminalId)
+        if (!saleTerminal || !canUseTerminal(auth, saleTerminal)) {
+          throw new Error(`Checkout access denied for ${sale.client_transaction_id}`)
+        }
+        if (saleLocationId && saleTerminal.location_id !== saleLocationId) {
+          throw new Error(`Checkout does not belong to the sale branch for ${sale.client_transaction_id}`)
+        }
+      }
+
       const offlineLineItemId = `offline-item:${sale.client_transaction_id}`
 
       const existingSnapshot = await findExistingOfflineSnapshot(
@@ -80,7 +172,10 @@ export async function POST(
       }
 
       const [config] = await inventoryConfigService.listInventoryConfigs(
-        { variant_id: sale.variant_id },
+        {
+          variant_id: sale.variant_id,
+          shop_id: validated.shop_id,
+        },
         {
           take: 1,
           order: {
@@ -117,10 +212,15 @@ export async function POST(
         )
       }
 
-      const stockCacheKey = `${validated.shop_id}:${sale.variant_id}`
+      const stockCacheKey = `${validated.shop_id}:${saleLocationId ?? "all"}:${sale.variant_id}`
       const serverStock =
         stockCache.get(stockCacheKey) ??
-        (await calculateServerStock(req.scope, validated.shop_id, sale.variant_id))
+        (await calculateServerStock(
+          req.scope,
+          validated.shop_id,
+          sale.variant_id,
+          saleLocationId
+        ))
 
       if (!validateStock(serverStock, sale.deduction_value)) {
         throw new Error(
@@ -152,7 +252,10 @@ export async function POST(
           order_id: sale.order_id ?? `offline:${sale.client_transaction_id}`,
           line_item_id: offlineLineItemId,
           shop_id: validated.shop_id,
+          location_id: saleLocationId,
+          terminal_id: saleTerminalId,
           variant_id: sale.variant_id,
+          sales_channel: "pos",
           inventory_type: sale.inventory_type,
           unit_sold: sale.unit_sold,
           quantity_sold: sale.quantity_sold,
@@ -204,6 +307,8 @@ export async function POST(
         paymentSummary.mpesa_total += sale.amount_paid ?? sale.price_charged
       }
 
+      touchedVariants.add(sale.variant_id)
+
       results.push({
         client_transaction_id: sale.client_transaction_id,
         status: syncStatus,
@@ -219,6 +324,10 @@ export async function POST(
         is_retryable: isRetryableSyncError(error),
       })
     }
+  }
+
+  for (const variantId of touchedVariants) {
+    await syncAggregateInventoryLevelForVariant(req, validated.shop_id, variantId)
   }
 
   res.status(200).json({
