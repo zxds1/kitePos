@@ -15,6 +15,7 @@ const ShopUser = model.define("shop_user", {
   invite_expires_at: model.dateTime().nullable(),
   recovery_code_hash: model.text().nullable(),
   recovery_expires_at: model.dateTime().nullable(),
+  profile_image_url: model.text().nullable(),
   is_active: model.boolean().default(true),
   pin_updated_at: model.dateTime().nullable(),
   last_login_at: model.dateTime().nullable(),

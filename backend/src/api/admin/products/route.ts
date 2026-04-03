@@ -64,6 +64,12 @@ function normalizeCreateProductInput(input: unknown) {
     name: candidate.title,
     category:
       typeof metadata.pos_category === "string" ? metadata.pos_category : undefined,
+    image_url:
+      typeof candidate.thumbnail === "string"
+        ? candidate.thumbnail
+        : typeof metadata.pos_image_url === "string"
+          ? metadata.pos_image_url
+          : undefined,
     inventory_type: metadata.pos_inventory_type,
     purchase_unit:
       typeof metadata.pos_purchase_unit === "string"
@@ -224,6 +230,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       products: [
         {
           title: body.name,
+          ...(body.image_url ? { thumbnail: body.image_url } : {}),
           status: ProductStatus.PUBLISHED,
           discountable: false,
           metadata: {
@@ -232,6 +239,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
             pos_create_idempotency_key: idempotencyKey,
             pos_shop_id: shopId ?? null,
             pos_default_location_id: location?.id ?? null,
+            pos_image_url: body.image_url ?? null,
+            pos_brand: body.brand ?? null,
+            pos_style_code: body.style_code ?? null,
+            pos_model_name: body.model_name ?? null,
           },
           options: [
             {
@@ -320,6 +331,21 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     purchase_value: body.purchase_value,
     selling_units: body.selling_units,
     low_stock_threshold: body.low_stock_threshold,
+    brand: body.brand ?? null,
+    style_code: body.style_code ?? null,
+    size: body.size ?? null,
+    color: body.color ?? null,
+    gender: body.gender ?? null,
+    material: body.material ?? null,
+    imei: body.imei ?? null,
+    serial_number: body.serial_number ?? null,
+    model_name: body.model_name ?? null,
+    storage_capacity: body.storage_capacity ?? null,
+    device_condition: body.device_condition ?? "new",
+    warranty_enabled: body.warranty_enabled ?? false,
+    warranty_months: body.warranty_months ?? null,
+    is_returnable: body.is_returnable ?? true,
+    return_window_days: body.return_window_days ?? 7,
     is_active: body.is_active,
   } as unknown as Record<string, unknown>)
 

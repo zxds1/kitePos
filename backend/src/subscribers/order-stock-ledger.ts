@@ -1,8 +1,8 @@
 import {
   type SubscriberArgs,
   type SubscriberConfig,
-  ContainerRegistrationKeys,
 } from "@medusajs/framework"
+import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { ADJUSTMENT_MODULE } from "../modules/adjustment"
 import type AdjustmentModuleService from "../modules/adjustment/service"
 import { INVENTORY_CONFIG_MODULE } from "../modules/inventory-config"
@@ -192,7 +192,7 @@ async function createSnapshotsForOrder(
       inventory_type: config.inventory_type,
       unit_sold: primarySellingUnit.unit,
       quantity_sold: quantitySold,
-      conversion_factor_snapshot: primarySellingUnit.conversionValue,
+      conversion_factor_snapshot: primarySellingUnit.conversion_value,
       deduction_value: deductionValue,
       price_charged: Number(item.total ?? item.unit_price ?? 0),
       payment_method: "online",

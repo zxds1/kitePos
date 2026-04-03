@@ -16,6 +16,10 @@ import { AuthRegisterShop } from "../validators"
 import { listShopLocations } from "../../pos/_utils/shop-locations"
 import { shapeShopUser } from "../_utils/shop-users"
 import { shapeShop } from "../_utils/shape-shop"
+import {
+  mergeIndustryFeatures,
+  validateIndustryTypes,
+} from "../../../utils/catalog-config"
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const auth = authenticatePosJwt(req as PosAuthenticatedRequest, res)
@@ -31,7 +35,20 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     SHOP_USER_MODULE
   )
   const body = AuthRegisterShop.parse(req.validatedBody)
+  const requestedIndustryTypes =
+    body.industry_types?.length ? body.industry_types : [body.industry_type]
+  const { normalized: normalizedIndustryTypes, unknown } =
+    validateIndustryTypes(requestedIndustryTypes)
   const ownerPhoneHash = hashPhone(body.owner_phone)
+
+  if (unknown.length > 0) {
+    res.status(400).json({
+      success: false,
+      message: "Unknown industry types provided",
+      unknown_industry_types: unknown,
+    })
+    return
+  }
 
   if (auth.phone_number !== body.owner_phone) {
     res.status(403).json({
@@ -63,6 +80,12 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     id: `shop_${randomUUID().replace(/-/g, "").slice(0, 24)}`,
     shop_name: body.shop_name,
     owner_phone_hash: ownerPhoneHash,
+    shop_type: normalizedIndustryTypes[0] ?? body.industry_type,
+    industry_types: { values: normalizedIndustryTypes },
+    industry_features: {
+      ...mergeIndustryFeatures(normalizedIndustryTypes),
+      ...(body.industry_features ?? {}),
+    },
     region_code: body.region_code,
     ward_code: body.ward_code,
     category: body.category ?? null,
@@ -76,7 +99,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     mpesa_display_name: body.mpesa_display_name ?? null,
   })
 
-  const shopId = String((shop as Record<string, unknown>).id)
+  const shopId = String((shop as unknown as Record<string, unknown>).id)
   await shopLocationService.createShopLocations({
     id: `loc_${randomUUID().replace(/-/g, "").slice(0, 24)}`,
     shop_id: shopId,

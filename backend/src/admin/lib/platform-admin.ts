@@ -62,6 +62,16 @@ export type ShopRecord = {
   mpesa_phone?: string | null
 }
 
+export type CatalogConfigResponse = {
+  success: boolean
+  path: string
+  catalog: {
+    version: string
+    industries: Array<Record<string, unknown>>
+    categories: Array<Record<string, unknown>>
+  }
+}
+
 export async function adminRequest<T>(
   path: string,
   init?: RequestInit

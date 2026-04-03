@@ -13,6 +13,10 @@ export const AdminCreateRestock = z.object({
   receipt_raw_text: z.string().nullable().optional(),
   supplier_name: z.string().nullable().optional(),
   sales_channel: z.enum(["pos", "storefront"]).optional().default("pos"),
+  size: z.string().nullable().optional(),
+  color: z.string().nullable().optional(),
+  imei_list: z.array(z.string()).nullable().optional(),
+  model_name: z.string().nullable().optional(),
   conversion_snapshot: z.record(z.string(), z.unknown()),
   timestamp: z.coerce.date(),
 })

@@ -17,6 +17,7 @@ export type ShopUserRecord = {
   shop_id: string
   phone_hash: string
   full_name?: string | null
+  profile_image_url?: string | null
   role?: PosRole | null
   assigned_location_ids?: unknown
   assigned_terminal_ids?: unknown
@@ -57,6 +58,10 @@ export function roleHasGlobalBranchAccess(role?: string | null) {
   return role === "owner" || role === "admin"
 }
 
+export function isOwnerRole(role?: string | null) {
+  return role === "owner"
+}
+
 export function canManageBranches(role?: string | null) {
   return role === "owner" || role === "admin"
 }
@@ -87,6 +92,7 @@ export function shapeShopUser(user: ShopUserRecord) {
     id: user.id,
     shop_id: user.shop_id,
     full_name: user.full_name ?? null,
+    profile_image_url: user.profile_image_url ?? null,
     role: user.role ?? "cashier",
     assigned_location_ids: normalizeAssignedLocationIds(
       user.assigned_location_ids

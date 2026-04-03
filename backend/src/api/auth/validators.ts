@@ -1,6 +1,15 @@
 import { z } from "zod"
 import { normalizeKenyanPhone } from "../../utils/hash"
 
+const IndustryType = z
+  .string()
+  .trim()
+  .min(1)
+  .regex(
+    /^[a-z0-9]+(?:[_-][a-z0-9]+)*$/,
+    "Industry type must be a lowercase slug"
+  )
+
 const KenyanPhone = z.string().transform((value, ctx) => {
   try {
     return normalizeKenyanPhone(value)
@@ -57,4 +66,7 @@ export const AuthRegisterShop = z.object({
   mpesa_paybill: z.string().optional(),
   accept_mpesa: z.boolean().optional().default(true),
   mpesa_display_name: z.string().max(50).optional(),
+  industry_type: IndustryType.optional().default("retail_duka"),
+  industry_types: z.array(IndustryType).min(1).optional(),
+  industry_features: z.record(z.string(), z.unknown()).optional(),
 })

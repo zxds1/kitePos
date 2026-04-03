@@ -105,7 +105,7 @@ export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
     if (!terminal) {
       return true
     }
-    if (nextLocationIds.isEmpty) {
+    if (nextLocationIds.length === 0) {
       return false
     }
     return !nextLocationIds.includes(terminal.location_id)
@@ -120,7 +120,8 @@ export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
 
   const service: ShopUserModuleService = req.scope.resolve(SHOP_USER_MODULE)
   const recoveryCode =
-    parsed.data.regenerate_recovery_code == true || (parsed.data.pin?.isNotEmpty ?? false)
+    parsed.data.regenerate_recovery_code == true ||
+    ((parsed.data.pin?.length ?? 0) > 0)
       ? generateNumericCode(6)
       : null
   const updated = await service.updateShopUsers({
@@ -136,9 +137,9 @@ export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
     } : {}),
     ...(parsed.data.pin != null
       ? {
-          pin_hash: parsed.data.pin.isEmpty ? null : hashPin(parsed.data.pin),
+          pin_hash: parsed.data.pin.length === 0 ? null : hashPin(parsed.data.pin),
           pin_updated_at: new Date(),
-          must_change_pin: parsed.data.pin.isEmpty ? false : true,
+          must_change_pin: parsed.data.pin.length > 0,
           device_hash: null,
         }
       : {}),

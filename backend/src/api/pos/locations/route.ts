@@ -10,6 +10,19 @@ import {
   canUseLocation,
 } from "../../auth/_utils/shop-users"
 import { recordAuditLog } from "../_utils/audit"
+import {
+  mergeIndustryFeatures,
+  validateIndustryTypes,
+} from "../../../utils/catalog-config"
+
+const IndustryTypeSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .regex(
+    /^[a-z0-9]+(?:[_-][a-z0-9]+)*$/,
+    "Industry type must be a lowercase slug"
+  )
 
 const CreateLocationSchema = z.object({
   name: z.string().min(1),
@@ -17,6 +30,8 @@ const CreateLocationSchema = z.object({
   address: z.string().optional(),
   location_type: z.enum(["physical", "online", "shared"]).default("physical"),
   is_default: z.boolean().optional().default(false),
+  industry_types: z.array(IndustryTypeSchema).min(1).optional(),
+  industry_features: z.record(z.string(), z.unknown()).optional(),
 })
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
@@ -59,6 +74,19 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
   const service: ShopLocationModuleService = req.scope.resolve(SHOP_LOCATION_MODULE)
   const body = parsed.data
+  const requestedIndustryTypes = body.industry_types ?? []
+  const { normalized: normalizedIndustryTypes, unknown } =
+    validateIndustryTypes(requestedIndustryTypes)
+
+  if (unknown.length > 0) {
+    res.status(400).json({
+      success: false,
+      message: "Unknown industry types provided",
+      unknown_industry_types: unknown,
+    })
+    return
+  }
+
   if (body.is_default) {
     const [existingLocations] = await service.listAndCountShopLocations(
       { shop_id: auth.shop_id, is_default: true },
@@ -81,6 +109,16 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     location_type: body.location_type,
     is_default: body.is_default,
     is_active: true,
+    metadata:
+      normalizedIndustryTypes.length > 0 || body.industry_features != null
+        ? {
+            industry_types: normalizedIndustryTypes,
+            industry_features: {
+              ...mergeIndustryFeatures(normalizedIndustryTypes),
+              ...(body.industry_features ?? {}),
+            },
+          }
+        : null,
   } as unknown as Record<string, unknown>)
 
   await recordAuditLog(req.scope, {

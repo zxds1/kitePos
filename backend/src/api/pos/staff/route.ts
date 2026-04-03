@@ -123,7 +123,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     if (!terminal) {
       return true
     }
-    if (locationIds.isEmpty) {
+    if (locationIds.length === 0) {
       return false
     }
     return !locationIds.includes(terminal.location_id)

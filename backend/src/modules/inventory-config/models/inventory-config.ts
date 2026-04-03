@@ -24,6 +24,29 @@ const InventoryConfig = model.define("inventory_config", {
   // Thresholds
   low_stock_threshold: model.bigNumber(),
 
+  // Shared industry attributes
+  brand: model.text().nullable(),
+  style_code: model.text().nullable(),
+
+  // Fashion
+  size: model.text().nullable(),
+  color: model.text().nullable(),
+  gender: model.enum(["men", "women", "unisex", "boys", "girls"]).nullable(),
+  material: model.text().nullable(),
+
+  // Electronics
+  imei: model.text().nullable(),
+  serial_number: model.text().nullable(),
+  model_name: model.text().nullable(),
+  storage_capacity: model.text().nullable(),
+  device_condition: model.enum(["new", "refurbished", "used"]).default("new"),
+  warranty_enabled: model.boolean().default(false),
+  warranty_months: model.number().nullable(),
+
+  // Returns
+  is_returnable: model.boolean().default(true),
+  return_window_days: model.number().default(7),
+
   // Status
   is_active: model.boolean().default(true),
 })

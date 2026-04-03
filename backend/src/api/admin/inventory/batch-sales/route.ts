@@ -24,6 +24,8 @@ import { calculateServerStock } from "../../../../utils/stock-calculator"
 import type { InventoryType, SellingUnit } from "../../../../types/inventory"
 import { canUseLocation } from "../../../auth/_utils/shop-users"
 import { canUseTerminal, listShopTerminals } from "../../../pos/_utils/terminals"
+import { LoyaltyService } from "../../../../services/loyalty.service"
+import { TaxService } from "../../../../services/tax.service"
 
 async function findExistingOfflineSnapshot(
   saleSnapshotService: SaleSnapshotModuleService,
@@ -59,6 +61,8 @@ export async function POST(
   )
   const inventoryConfigService: InventoryConfigModuleService =
     req.scope.resolve(INVENTORY_CONFIG_MODULE)
+  const loyaltyService = new LoyaltyService(req.scope)
+  const taxService = new TaxService(req.scope)
 
   const validated = AdminBatchSalesRequest.parse(req.validatedBody)
 
@@ -297,6 +301,32 @@ export async function POST(
       }
 
       stockCache.set(stockCacheKey, sale.stock_after)
+
+      await loyaltyService.processSaleEarn({
+        shopId: validated.shop_id,
+        saleSnapshotId: String(snapshot.id),
+        saleId: sale.order_id ?? sale.client_transaction_id,
+        phoneNumber: sale.mpesa_customer_phone ?? null,
+        purchaseAmount: sale.amount_paid ?? sale.price_charged,
+        saleTimestamp: sale.timestamp,
+        createdBy: auth.user_id ?? null,
+      })
+
+      const saleAmount = sale.amount_paid ?? sale.price_charged
+      const shop = await taxService.getShop(validated.shop_id)
+      if (
+        shop?.tax_invoice_enabled === true &&
+        Number(saleAmount) > 0 &&
+        Number(saleAmount) <= 10000
+      ) {
+        await taxService.generateInvoiceForSale({
+          shopId: validated.shop_id,
+          saleId: sale.order_id ?? sale.client_transaction_id,
+          locationId: sale.location_id ?? validated.location_id ?? null,
+          customerName: null,
+          createdBy: auth.user_id ?? auth.shop_id,
+        })
+      }
 
       if (sale.payment_method === "cash") {
         paymentSummary.cash_count += 1

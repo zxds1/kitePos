@@ -25,6 +25,10 @@ const Restock = model.define("restock", {
   receipt_raw_text: model.text().nullable(),
   supplier_name: model.text().nullable(),
   sales_channel: model.text().default("pos"),
+  size: model.text().nullable(),
+  color: model.text().nullable(),
+  imei_list: model.json().nullable(),
+  model_name: model.text().nullable(),
 
   // Snapshot
   conversion_snapshot: model.json(),

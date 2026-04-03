@@ -93,14 +93,28 @@ export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
     productMetadata.pos_category = body.category
   }
 
+  if ("image_url" in body) {
+    productMetadata.pos_image_url = body.image_url
+  }
+
   if ("cost_per_purchase" in body) {
     productMetadata.pos_cost_per_purchase = body.cost_per_purchase
+  }
+  if ("brand" in body) {
+    productMetadata.pos_brand = body.brand
+  }
+  if ("style_code" in body) {
+    productMetadata.pos_style_code = body.style_code
+  }
+  if ("model_name" in body) {
+    productMetadata.pos_model_name = body.model_name
   }
 
   const primarySellingUnit = body.selling_units?.[0]
   const hasProductUpdates =
     body.name != null ||
     "category" in body ||
+    "image_url" in body ||
     "cost_per_purchase" in body ||
     primarySellingUnit != null
 
@@ -111,6 +125,10 @@ export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
 
     if (body.name) {
       update.title = body.name
+    }
+
+    if ("image_url" in body) {
+      update.thumbnail = body.image_url
     }
 
     if (primarySellingUnit) {
@@ -144,6 +162,31 @@ export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
       ...(body.selling_units ? { selling_units: body.selling_units } : {}),
       ...(body.low_stock_threshold != null
         ? { low_stock_threshold: body.low_stock_threshold }
+        : {}),
+      ...("brand" in body ? { brand: body.brand } : {}),
+      ...("style_code" in body ? { style_code: body.style_code } : {}),
+      ...("size" in body ? { size: body.size } : {}),
+      ...("color" in body ? { color: body.color } : {}),
+      ...("gender" in body ? { gender: body.gender } : {}),
+      ...("material" in body ? { material: body.material } : {}),
+      ...("imei" in body ? { imei: body.imei } : {}),
+      ...("serial_number" in body ? { serial_number: body.serial_number } : {}),
+      ...("model_name" in body ? { model_name: body.model_name } : {}),
+      ...("storage_capacity" in body
+        ? { storage_capacity: body.storage_capacity }
+        : {}),
+      ...(body.device_condition ? { device_condition: body.device_condition } : {}),
+      ...("warranty_enabled" in body
+        ? { warranty_enabled: body.warranty_enabled }
+        : {}),
+      ...("warranty_months" in body
+        ? { warranty_months: body.warranty_months }
+        : {}),
+      ...("is_returnable" in body
+        ? { is_returnable: body.is_returnable }
+        : {}),
+      ...("return_window_days" in body
+        ? { return_window_days: body.return_window_days }
         : {}),
       ...(body.is_active != null ? { is_active: body.is_active } : {}),
     },

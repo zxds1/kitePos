@@ -1,0 +1,140 @@
+{
+  "version": "2026-04-03",
+  "industries": [
+    {
+      "slug": "retail_duka",
+      "label": "General Retail (Duka)",
+      "supplier_categories": ["general"],
+      "category_slugs": [
+        "beverages",
+        "snacks",
+        "food_staples",
+        "household",
+        "personal_care",
+        "accessories",
+        "other"
+      ]
+    },
+    {
+      "slug": "cereals_store",
+      "label": "Cereals Store",
+      "supplier_categories": ["cereals", "grains", "food staples"],
+      "category_slugs": ["cereals", "food_staples", "other"],
+      "default_features": {
+        "weight_tracking": true,
+        "grade_tracking": true
+      }
+    },
+    {
+      "slug": "wholesale_supplier",
+      "label": "Wholesale / Supplier",
+      "supplier_categories": ["wholesale"],
+      "category_slugs": ["other"]
+    },
+    {
+      "slug": "fashion",
+      "label": "Fashion",
+      "selectable": false,
+      "helper": "Enable fashion workflows first, then choose the matching branch or shop subtype.",
+      "supplier_categories": ["fashion", "apparel", "footwear", "accessories"],
+      "category_slugs": [
+        "fashion",
+        "clothes",
+        "footwear",
+        "shoes",
+        "sneakers",
+        "sandals",
+        "boots",
+        "accessories",
+        "other"
+      ],
+      "default_features": {
+        "size_tracking": true,
+        "color_tracking": true,
+        "category_tracking": true,
+        "brand_tracking": true,
+        "material_tracking": true,
+        "footwear_tracking": true
+      },
+      "children": [
+        {
+          "slug": "fashion_retail",
+          "label": "Fashion Retail"
+        },
+        {
+          "slug": "fashion_vendor",
+          "label": "Fashion Vendor"
+        }
+      ]
+    },
+    {
+      "slug": "electronics",
+      "label": "Electronics",
+      "selectable": false,
+      "helper": "Enable electronics workflows first, then choose the matching branch or shop subtype.",
+      "supplier_categories": [
+        "electronics",
+        "phones",
+        "tablets",
+        "laptops",
+        "devices",
+        "accessories",
+        "components"
+      ],
+      "category_slugs": [
+        "phones",
+        "tablets",
+        "laptops",
+        "audio",
+        "tvs",
+        "devices",
+        "electronics_accessories",
+        "electronics_components",
+        "other"
+      ],
+      "default_features": {
+        "imei_tracking": true,
+        "serial_tracking": true,
+        "warranty_tracking": true,
+        "model_tracking": true,
+        "brand_tracking": true,
+        "device_category_tracking": true
+      },
+      "children": [
+        {
+          "slug": "electronics_retail",
+          "label": "Electronics Retail"
+        },
+        {
+          "slug": "electronics_vendor",
+          "label": "Electronics Vendor"
+        }
+      ]
+    }
+  ],
+  "categories": [
+    { "slug": "beverages", "label": "Beverages" },
+    { "slug": "snacks", "label": "Snacks" },
+    { "slug": "food_staples", "label": "Food Staples" },
+    { "slug": "cereals", "label": "Cereals" },
+    { "slug": "household", "label": "Household" },
+    { "slug": "personal_care", "label": "Personal Care" },
+    { "slug": "fashion", "label": "Fashion" },
+    { "slug": "clothes", "label": "Clothes" },
+    { "slug": "footwear", "label": "Footwear" },
+    { "slug": "shoes", "label": "Shoes" },
+    { "slug": "sneakers", "label": "Sneakers" },
+    { "slug": "sandals", "label": "Sandals" },
+    { "slug": "boots", "label": "Boots" },
+    { "slug": "accessories", "label": "Accessories" },
+    { "slug": "phones", "label": "Phones" },
+    { "slug": "tablets", "label": "Tablets" },
+    { "slug": "laptops", "label": "Laptops" },
+    { "slug": "audio", "label": "Audio" },
+    { "slug": "tvs", "label": "TVs" },
+    { "slug": "devices", "label": "Devices" },
+    { "slug": "electronics_accessories", "label": "Electronics Accessories" },
+    { "slug": "electronics_components", "label": "Electronics Components" },
+    { "slug": "other", "label": "Other" }
+  ]
+}

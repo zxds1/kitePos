@@ -498,7 +498,12 @@ function buildFullDailyTrend(
   endDate: Date,
   dailyMap: Map<string, DailyAggregate>
 ) {
-  const trends = []
+  const trends: Array<{
+    date: string
+    revenue: number
+    transactions: number
+    average_transaction_value: number
+  }> = []
   let cursor = startOfDay(startDate)
   const end = startOfDay(endDate)
 

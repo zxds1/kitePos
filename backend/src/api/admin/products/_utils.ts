@@ -52,6 +52,21 @@ export type InventoryConfigRecord = {
   purchase_value?: number | { value?: string } | null
   selling_units?: unknown
   low_stock_threshold?: number | { value?: string } | null
+  brand?: string | null
+  style_code?: string | null
+  size?: string | null
+  color?: string | null
+  gender?: string | null
+  material?: string | null
+  imei?: string | null
+  serial_number?: string | null
+  model_name?: string | null
+  storage_capacity?: string | null
+  device_condition?: string | null
+  warranty_enabled?: boolean | null
+  warranty_months?: number | { value?: string } | null
+  is_returnable?: boolean | null
+  return_window_days?: number | { value?: string } | null
   is_active?: boolean | null
   created_at?: string | Date | null
   updated_at?: string | Date | null
@@ -71,6 +86,21 @@ export type NormalizedPosProduct = {
   conversion_factor: number
   stock_remaining: number
   low_stock_threshold: number | null
+  brand: string | null
+  style_code: string | null
+  size: string | null
+  color: string | null
+  gender: string | null
+  material: string | null
+  imei: string | null
+  serial_number: string | null
+  model_name: string | null
+  storage_capacity: string | null
+  device_condition: string | null
+  warranty_enabled: boolean
+  warranty_months: number | null
+  is_returnable: boolean
+  return_window_days: number | null
   is_active: boolean
   image_url: string | null
   last_synced_at: string
@@ -117,7 +147,7 @@ export async function listNormalizedProducts(
       ],
     }),
     inventoryConfigService.listInventoryConfigs(
-      options.shopId ? { shop_id: options.shopId } : {},
+      {},
       {
         take: 1000,
         order: { created_at: "DESC" },
@@ -188,6 +218,29 @@ export async function listNormalizedProducts(
             ),
             stock_remaining: stockRemaining,
             low_stock_threshold: toNumber(inventoryConfig?.low_stock_threshold),
+            brand: toText(
+              inventoryConfig?.brand ?? product.metadata?.["pos_brand"]
+            ),
+            style_code: toText(
+              inventoryConfig?.style_code ?? product.metadata?.["pos_style_code"]
+            ),
+            size: toText(inventoryConfig?.size),
+            color: toText(inventoryConfig?.color),
+            gender: toText(inventoryConfig?.gender),
+            material: toText(inventoryConfig?.material),
+            imei: toText(inventoryConfig?.imei),
+            serial_number: toText(inventoryConfig?.serial_number),
+            model_name: toText(
+              inventoryConfig?.model_name ?? product.metadata?.["pos_model_name"]
+            ),
+            storage_capacity: toText(inventoryConfig?.storage_capacity),
+            device_condition: toText(inventoryConfig?.device_condition),
+            warranty_enabled: inventoryConfig?.warranty_enabled === true,
+            warranty_months: toNumber(inventoryConfig?.warranty_months),
+            is_returnable: inventoryConfig?.is_returnable !== false,
+            return_window_days: toNumber(
+              inventoryConfig?.return_window_days
+            ),
             is_active: inventoryConfig?.is_active ?? true,
             image_url: variant.thumbnail ?? product.thumbnail ?? null,
             last_synced_at: new Date().toISOString(),
@@ -556,6 +609,15 @@ export function toNumber(value: unknown) {
 
   const coerced = Number(value)
   return Number.isNaN(coerced) ? null : coerced
+}
+
+export function toText(value: unknown) {
+  if (typeof value !== "string") {
+    return null
+  }
+
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : null
 }
 
 export function toIsoString(value: string | Date | null | undefined) {

@@ -72,6 +72,9 @@ const DashboardPage = () => {
           <Button variant="secondary" asChild>
             <Link to="/platform/exports">Export Data</Link>
           </Button>
+          <Button variant="secondary" asChild>
+            <Link to="/platform/catalog-config">Catalog Config</Link>
+          </Button>
         </div>
       </div>
 

@@ -13,6 +13,7 @@ import {
 } from "../_utils/pagination"
 import { syncAggregateInventoryLevelForVariant } from "../products/_utils"
 import { canUseLocation } from "../../auth/_utils/shop-users"
+import { TaxService } from "../../../services/tax.service"
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const auth = authenticatePosJwt(req as PosAuthenticatedRequest, res)
@@ -104,6 +105,15 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const restock = await service.createRestocks(
     payload
   )
+
+  await new TaxService(req.scope).ensureInputVatRecordForRestock({
+    shopId,
+    restockId: String((restock as Record<string, unknown>).id),
+    supplierName: typeof payload["supplier_name"] === "string" ? payload["supplier_name"] : null,
+    supplierInvoiceDate: payload["timestamp"] instanceof Date ? payload["timestamp"] : new Date(),
+    totalCost: Number(payload["total_cost"] ?? 0),
+    receiptImageUrl: typeof payload["receipt_image_url"] === "string" ? payload["receipt_image_url"] : null,
+  })
 
   const variantId =
     typeof payload["variant_id"] === "string" ? payload["variant_id"] : null

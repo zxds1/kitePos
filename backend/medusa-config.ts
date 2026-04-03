@@ -2,10 +2,13 @@ import { loadEnv, defineConfig } from '@medusajs/framework/utils'
 
 loadEnv(process.env.NODE_ENV || 'development', process.cwd())
 
+const shouldUseRedis =
+  process.env.ENABLE_REDIS === 'true' || process.env.NODE_ENV === 'production'
+
 module.exports = defineConfig({
   projectConfig: {
     databaseUrl: process.env.DATABASE_URL,
-    redisUrl: process.env.REDIS_URL,
+    redisUrl: shouldUseRedis ? process.env.REDIS_URL : undefined,
     http: {
       storeCors: process.env.STORE_CORS!,
       adminCors: process.env.ADMIN_CORS!,
@@ -53,6 +56,60 @@ module.exports = defineConfig({
     },
     {
       resolve: "./src/modules/otp-challenge",
+    },
+    {
+      resolve: "./src/modules/supplier",
+    },
+    {
+      resolve: "./src/modules/purchase-order",
+    },
+    {
+      resolve: "./src/modules/auto-reorder-rule",
+    },
+    {
+      resolve: "./src/modules/notification",
+    },
+    {
+      resolve: "./src/modules/loyalty-member",
+    },
+    {
+      resolve: "./src/modules/loyalty-ledger",
+    },
+    {
+      resolve: "./src/modules/loyalty-program",
+    },
+    {
+      resolve: "./src/modules/loyalty-reward",
+    },
+    {
+      resolve: "./src/modules/loyalty-redemption",
+    },
+    {
+      resolve: "./src/modules/return-request",
+    },
+    {
+      resolve: "./src/modules/return-reason",
+    },
+    {
+      resolve: "./src/modules/refund-transaction",
+    },
+    {
+      resolve: "./src/modules/shift-session",
+    },
+    {
+      resolve: "./src/modules/tax-invoice",
+    },
+    {
+      resolve: "./src/modules/vat-return",
+    },
+    {
+      resolve: "./src/modules/tax-report",
+    },
+    {
+      resolve: "./src/modules/input-vat-record",
+    },
+    {
+      resolve: "./src/modules/tax-report-run",
     },
   ],
 })
