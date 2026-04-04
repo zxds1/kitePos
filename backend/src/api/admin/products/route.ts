@@ -28,6 +28,8 @@ import type {
   ProductQueryRecord,
   ProductVariantQueryRecord,
 } from "./_utils"
+import { RAGRouterService } from "../../../services/rag-router.service"
+import { buildProductEmbeddingText } from "./_rag"
 
 type PosCreateBodyCarrier = MedusaRequest & {
   pos_product_body?: unknown
@@ -400,7 +402,24 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       : createdProduct.updated_at
         ? new Date(createdProduct.updated_at).toISOString()
         : null,
+    brand: body.brand ?? null,
+    style_code: body.style_code ?? null,
+    model_name: body.model_name ?? null,
   }
+
+  await new RAGRouterService(req.scope).embedEntity({
+    entityType: "product",
+    entityId: createdVariant.id,
+    shopId,
+    contentText: buildProductEmbeddingText(normalizedProduct),
+    contentMetadata: {
+      category: normalizedProduct.category,
+      brand: normalizedProduct.brand,
+      price: body.selling_units[0]?.price ?? 0,
+      stock: normalizedProduct.stock_remaining,
+      variant_id: createdVariant.id,
+    },
+  })
 
   res.status(201).json({
     success: true,

@@ -90,6 +90,11 @@ export default defineMiddlewares({
       middlewares: [...adminAuthMiddlewares],
     },
     {
+      method: ["GET", "POST"],
+      matcher: "/admin/ai-config",
+      middlewares: [...adminAuthMiddlewares],
+    },
+    {
       method: ["POST"],
       matcher: "/admin/inventory-configs",
       middlewares: [

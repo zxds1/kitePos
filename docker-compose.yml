@@ -1,0 +1,77 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg15
+    container_name: trace_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-medusa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-medusa_password}
+      POSTGRES_DB: ${POSTGRES_DB:-medusa_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_main_data:/var/lib/postgresql/data
+
+  postgres_ragflow:
+    image: pgvector/pgvector:pg15
+    container_name: trace_ragflow_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-medusa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-medusa_password}
+      POSTGRES_DB: ${RAGFLOW_POSTGRES_DB:-ragflow_db}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_ragflow_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: trace_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  litellm:
+    image: ghcr.io/berriai/litellm:main
+    container_name: trace_litellm
+    ports:
+      - "4000:4000"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+    volumes:
+      - ./litellm_config.yaml:/app/config.yaml
+    command: ["--config", "/app/config.yaml"]
+    depends_on:
+      - postgres
+
+  ragflow:
+    image: infiniflow/ragflow:latest
+    container_name: trace_ragflow
+    ports:
+      - "9380:9380"
+      - "8080:8080"
+    environment:
+      RAGFLOW_DB_HOST: postgres_ragflow
+      RAGFLOW_DB_PORT: 5432
+      RAGFLOW_DB_USER: ${POSTGRES_USER:-medusa}
+      RAGFLOW_DB_PASSWORD: ${POSTGRES_PASSWORD:-medusa_password}
+      RAGFLOW_DB_NAME: ${RAGFLOW_POSTGRES_DB:-ragflow_db}
+      LITELLM_BASE_URL: http://litellm:4000
+      RAGFLOW_API_KEY: ${RAGFLOW_API_KEY:-change_this_ragflow_key}
+    volumes:
+      - ragflow_data:/var/lib/ragflow
+      - ./ragflow_config.yaml:/app/config.yaml
+    depends_on:
+      - postgres_ragflow
+      - litellm
+      - redis
+
+volumes:
+  postgres_main_data:
+  postgres_ragflow_data:
+  ragflow_data:
+  redis_data:

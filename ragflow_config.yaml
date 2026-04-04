@@ -1,0 +1,44 @@
+db:
+  host: postgres_ragflow
+  port: 5432
+  user: medusa
+  password: medusa_password
+  database: ragflow_db
+
+vector_store:
+  type: pgvector
+  host: postgres_ragflow
+  port: 5432
+  user: medusa
+  password: medusa_password
+  database: ragflow_db
+  embedding_dimensions: 1536
+
+embedding:
+  provider: litellm
+  base_url: http://litellm:4000/v1
+  model: text-embedding-3-small
+  dimensions: 1536
+
+llm:
+  provider: litellm
+  base_url: http://litellm:4000/v1
+  model: gpt-4o-mini
+  max_tokens: 500
+  temperature: 0.3
+
+retrieval:
+  hybrid_search: true
+  top_k: 5
+  score_threshold: 0.7
+  re_rank: true
+
+cache:
+  enabled: true
+  backend: redis
+  redis_host: redis
+  redis_port: 6379
+  ttl_hours: 24
+
+web:
+  port: 9380

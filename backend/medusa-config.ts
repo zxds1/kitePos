@@ -22,6 +22,15 @@ module.exports = defineConfig({
       resolve: "./src/modules/shop",
     },
     {
+      resolve: "./src/modules/ai-config",
+    },
+    {
+      resolve: "./src/modules/ai-operation-log",
+    },
+    {
+      resolve: "./src/modules/online-store",
+    },
+    {
       resolve: "./src/modules/shop-user",
     },
     {

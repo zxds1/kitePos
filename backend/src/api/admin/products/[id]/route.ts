@@ -10,6 +10,8 @@ import {
   getProductAndVariantByVariantId,
   resolveShopId,
 } from "../_utils"
+import { RAGRouterService } from "../../../../services/rag-router.service"
+import { buildProductEmbeddingText } from "../_rag"
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const auth = authenticatePosJwt(req as PosAuthenticatedRequest, res)
@@ -194,6 +196,22 @@ export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
 
   const product = await getNormalizedProductByVariantId(req, variantId, shopId)
 
+  if (product) {
+    await new RAGRouterService(req.scope).embedEntity({
+      entityType: "product",
+      entityId: variantId,
+      shopId,
+      contentText: buildProductEmbeddingText(product as Record<string, unknown>),
+      contentMetadata: {
+        category: product.category,
+        brand: product.brand,
+        price: product.selling_units[0]?.price ?? 0,
+        stock: product.stock_remaining,
+        variant_id: variantId,
+      },
+    })
+  }
+
   res.status(200).json({
     success: true,
     product,
@@ -238,6 +256,12 @@ export async function DELETE(req: MedusaRequest, res: MedusaResponse) {
       is_active: false,
     },
   ] as unknown as Record<string, unknown>[])
+
+  await new RAGRouterService(req.scope).deleteEmbeddings(
+    "product",
+    req.params.id,
+    shopId
+  )
 
   res.status(200).json({
     success: true,

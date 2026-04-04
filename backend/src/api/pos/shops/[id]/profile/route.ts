@@ -24,6 +24,8 @@ const UpdateProfileSchema = z.object({
   business_license: z.string().max(100).optional().nullable(),
   full_name: z.string().min(1).max(100).optional(),
   profile_image_url: z.string().max(4_000_000).optional().nullable(),
+  shop_profile_image_url: z.string().max(4_000_000).optional().nullable(),
+  user_profile_image_url: z.string().max(4_000_000).optional().nullable(),
 })
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
@@ -142,8 +144,13 @@ export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
   if (validated.data.business_license != null) {
     updateInput.business_license = validated.data.business_license
   }
-  if (validated.data.profile_image_url !== undefined && canManageBranches(auth.role)) {
-    updateInput.profile_image_url = validated.data.profile_image_url
+  const shopProfileImageUrl =
+    validated.data.shop_profile_image_url !== undefined
+      ? validated.data.shop_profile_image_url
+      : validated.data.profile_image_url
+
+  if (shopProfileImageUrl !== undefined && canManageBranches(auth.role)) {
+    updateInput.profile_image_url = shopProfileImageUrl
   }
   if (validated.data.owner_phone != null) {
     const normalizedPhone = normalizeKenyanPhone(validated.data.owner_phone)
@@ -157,12 +164,16 @@ export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
 
   let updatedViewer = viewer
 
+  const userProfileImageUrl =
+    validated.data.user_profile_image_url !== undefined
+      ? validated.data.user_profile_image_url
+      : validated.data.profile_image_url
+
   if (
     auth.user_id &&
     viewer &&
     (validated.data.full_name != null ||
-      (validated.data.profile_image_url !== undefined &&
-        !canManageBranches(auth.role)))
+      userProfileImageUrl !== undefined)
   ) {
     const [nextViewer] = await shopUserService.updateShopUsers([
       {
@@ -170,10 +181,9 @@ export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
         ...(validated.data.full_name != null
           ? { full_name: validated.data.full_name }
           : {}),
-        ...(validated.data.profile_image_url !== undefined &&
-                !canManageBranches(auth.role)
-            ? { profile_image_url: validated.data.profile_image_url }
-            : {}),
+        ...(userProfileImageUrl !== undefined
+          ? { profile_image_url: userProfileImageUrl }
+          : {}),
       },
     ])
     updatedViewer = nextViewer as Record<string, unknown>
