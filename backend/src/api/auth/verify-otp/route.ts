@@ -10,9 +10,10 @@ import { resolveShopAuthState } from "../_utils/shop-auth"
 import { hashOtp, hashPhone } from "../../../utils/hash"
 import { AuthVerifyOtp } from "../validators"
 import { listShopLocations } from "../../pos/_utils/shop-locations"
-import { shapeShopUser } from "../_utils/shop-users"
+import { shapeShopUser, type ShopUserRecord } from "../_utils/shop-users"
 import { randomUUID } from "node:crypto"
 import { shapeShop } from "../_utils/shape-shop"
+import { ensureDevBypassAuthRecords, getDevBypassOtp, isAllowedDevBypassPhone } from "../_utils/dev-bypass"
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const otpChallengeService: OtpChallengeModuleService = req.scope.resolve(
@@ -42,28 +43,46 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     )
   })
 
+  let devAuth:
+    | Awaited<ReturnType<typeof ensureDevBypassAuthRecords>>
+    | null = null
+
   if (!activeChallenge) {
-    res.status(400).json({
-      success: false,
-      message: "Invalid or expired OTP",
+    const canUseDevBypass =
+      isAllowedDevBypassPhone(body.phone_number) && body.otp === getDevBypassOtp()
+
+    if (!canUseDevBypass) {
+      res.status(400).json({
+        success: false,
+        message: "Invalid or expired OTP",
+      })
+      return
+    }
+
+    devAuth = await ensureDevBypassAuthRecords(req.scope, {
+      phoneNumber: body.phone_number,
+      deviceId: `otp-dev-${body.phone_number}`,
     })
-    return
   }
 
-  const challengeRecord = activeChallenge as unknown as { id: string; attempt_count?: number }
+  if (activeChallenge) {
+    const challengeRecord = activeChallenge as unknown as { id: string; attempt_count?: number }
 
-  await otpChallengeService.updateOtpChallenges([
-    {
-      id: challengeRecord.id,
-      consumed_at: new Date(),
-      attempt_count: (challengeRecord.attempt_count ?? 0) + 1,
-    },
-  ])
+    await otpChallengeService.updateOtpChallenges([
+      {
+        id: challengeRecord.id,
+        consumed_at: new Date(),
+        attempt_count: (challengeRecord.attempt_count ?? 0) + 1,
+      },
+    ])
+  }
 
   const shopState = await resolveShopAuthState(req.scope, shopService, phoneHash)
-  const shopRecord = shopState.shop ?? undefined
-  const consentGiven = shopState.isRegistered
-  let currentUser = shopState.user
+  const shopRecord = devAuth?.shop ?? shopState.shop ?? undefined
+  const consentGiven = devAuth ? true : shopState.isRegistered
+  let currentUser = (devAuth?.user as ShopUserRecord | undefined) ?? (
+    shopState.user as ShopUserRecord | undefined
+  )
   if (!currentUser && shopRecord && typeof shopRecord.id === "string") {
     currentUser = (await req.scope
       .resolve<ShopUserModuleService>(SHOP_USER_MODULE)
@@ -77,7 +96,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         assigned_terminal_ids: [],
         is_active: true,
         last_login_at: new Date(),
-      } as unknown as Record<string, unknown>)) as never
+      } as unknown as Record<string, unknown>)) as ShopUserRecord
   }
   const allLocations =
     shopRecord && typeof shopRecord.id === "string"
@@ -104,8 +123,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     phone_number: body.phone_number,
     shop_id: typeof shopRecord?.id === "string" ? shopRecord.id : null,
     is_registered: consentGiven,
-    user_id: currentUser?.id ?? null,
-    role: currentUser?.role ?? null,
+    user_id: typeof currentUser?.id === "string" ? currentUser.id : null,
+    role: typeof currentUser?.role === "string" ? currentUser.role : null,
     assigned_location_ids: assignedLocationIds,
     assigned_terminal_ids: assignedTerminalIds,
   })
@@ -123,8 +142,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     success: true,
     is_registered: consentGiven,
     ...tokens,
-    user_id: currentUser?.id ?? null,
-    role: currentUser?.role ?? null,
+    user_id: typeof currentUser?.id === "string" ? currentUser.id : null,
+    role: typeof currentUser?.role === "string" ? currentUser.role : null,
     assigned_location_ids: assignedLocationIds,
     assigned_terminal_ids: assignedTerminalIds,
     next_step: consentGiven ? "home" : "register_shop",

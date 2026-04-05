@@ -1,24 +1,35 @@
-// Uncomment this file to enable instrumentation and observability using OpenTelemetry
-// Refer to the docs for installation instructions: https://docs.medusajs.com/learn/debugging-and-testing/instrumentation
+import { registerOtel } from "@medusajs/medusa"
+import { ZipkinExporter } from "@opentelemetry/exporter-zipkin"
+import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http"
 
-// import { registerOtel } from "@medusajs/medusa"
-// // If using an exporter other than Zipkin, require it here.
-// import { ZipkinExporter } from "@opentelemetry/exporter-zipkin"
+const serviceName = process.env.OTEL_SERVICE_NAME ?? "uza-point-backend"
+const exporterType = (process.env.OTEL_EXPORTER ?? "zipkin").toLowerCase()
 
-// // If using an exporter other than Zipkin, initialize it here.
-// const exporter = new ZipkinExporter({
-//   serviceName: 'my-medusa-project',
-// })
+function createExporter() {
+  if (exporterType === "otlp") {
+    return new OTLPTraceExporter({
+      url: process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? "http://localhost:4318/v1/traces",
+    })
+  }
 
-// export function register() {
-//   registerOtel({
-//     serviceName: 'medusajs',
-//     // pass exporter
-//     exporter,
-//     instrument: {
-//       http: true,
-//       workflows: true,
-//       query: true
-//     },
-//   })
-// }
+  return new ZipkinExporter({
+    url: process.env.OTEL_EXPORTER_ZIPKIN_ENDPOINT ?? "http://localhost:9411/api/v2/spans",
+    serviceName,
+  })
+}
+
+export function register() {
+  if (process.env.ENABLE_OTEL !== "true") {
+    return
+  }
+
+  registerOtel({
+    serviceName,
+    exporter: createExporter(),
+    instrument: {
+      http: true,
+      workflows: true,
+      query: true,
+    },
+  })
+}

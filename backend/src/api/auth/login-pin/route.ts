@@ -9,6 +9,7 @@ import { AuthLoginPin } from "../validators"
 import { listShopLocations } from "../../pos/_utils/shop-locations"
 import { shapeShopResponse } from "../_utils/shape-shop"
 import { shapeShopUser } from "../_utils/shop-users"
+import { ensureDevBypassAuthRecords } from "../_utils/dev-bypass"
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const shopService: ShopModuleService = req.scope.resolve(SHOP_MODULE)
@@ -30,7 +31,24 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     }
   )
 
-  const currentUser = users[0] as Record<string, unknown> | undefined
+  let currentUser = users[0] as Record<string, unknown> | undefined
+  let shopRecord: Record<string, unknown> | undefined
+  let preloadedLocations: Awaited<ReturnType<typeof listShopLocations>> = []
+
+  if (!currentUser?.shop_id) {
+    const devAuth = await ensureDevBypassAuthRecords(req.scope, {
+      phoneNumber: body.phone_number,
+      deviceId: body.device_id,
+      pin: body.pin,
+    })
+
+    if (devAuth) {
+      currentUser = devAuth.user
+      shopRecord = devAuth.shop
+      preloadedLocations = devAuth.locations
+    }
+  }
+
   if (!currentUser?.shop_id) {
     res.status(401).json({
       success: false,
@@ -49,11 +67,14 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     }
   }
 
-  const [shops] = await shopService.listAndCountShops(
-    { id: String(currentUser.shop_id) },
-    { take: 1 }
-  )
-  const shopRecord = shops[0] as Record<string, unknown> | undefined
+  if (!shopRecord) {
+    const [shops] = await shopService.listAndCountShops(
+      { id: String(currentUser.shop_id) },
+      { take: 1 }
+    )
+    shopRecord = shops[0] as Record<string, unknown> | undefined
+  }
+
   if (!shopRecord) {
     res.status(404).json({
       success: false,
@@ -62,7 +83,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     return
   }
 
-  const allLocations = await listShopLocations(req.scope, String(currentUser.shop_id))
+  const allLocations =
+    preloadedLocations.length > 0
+      ? preloadedLocations
+      : await listShopLocations(req.scope, String(currentUser.shop_id))
   const assignedLocationIds = Array.isArray(currentUser.assigned_location_ids)
     ? currentUser.assigned_location_ids
         .filter((entry): entry is string => typeof entry === "string")

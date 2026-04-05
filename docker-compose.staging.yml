@@ -1,0 +1,133 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg15
+    container_name: staging_postgres
+    network_mode: host
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-medusa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-medusa_password}
+      POSTGRES_DB: ${POSTGRES_DB:-medusa_db}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-medusa} -d ${POSTGRES_DB:-medusa_db} -h 127.0.0.1 -p 5432"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    volumes:
+      - staging_postgres_main_data:/var/lib/postgresql/data
+
+  mysql:
+    image: mysql:8.0
+    container_name: staging_mysql
+    network_mode: host
+    environment:
+      MYSQL_ROOT_PASSWORD: infini_rag_flow
+      MYSQL_DATABASE: rag_flow
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin --protocol=tcp ping -h 127.0.0.1 -P 3306 -uroot -p$$MYSQL_ROOT_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    volumes:
+      - staging_mysql_data:/var/lib/mysql
+
+  redis:
+    image: redis:7-alpine
+    container_name: staging_redis
+    network_mode: host
+    healthcheck:
+      test: ["CMD", "redis-cli", "-h", "127.0.0.1", "-p", "6379", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    volumes:
+      - staging_redis_data:/data
+
+  litellm:
+    image: ghcr.io/berriai/litellm:main
+    container_name: staging_litellm
+    network_mode: host
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c 'import socket; s=socket.create_connection((\"127.0.0.1\",4000),2); s.close()'" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    volumes:
+      - ./litellm_config.yaml:/app/config.yaml
+    command: ["--config", "/app/config.yaml"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  ragflow:
+    image: infiniflow/ragflow:latest
+    container_name: staging_ragflow
+    network_mode: host
+    environment:
+      MYSQL_HOST: 127.0.0.1
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: infini_rag_flow
+      MYSQL_DBNAME: rag_flow
+      LITELLM_BASE_URL: http://127.0.0.1:4000
+      RAGFLOW_API_KEY: ${RAGFLOW_API_KEY:-change_this_ragflow_key}
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c 'import socket; s=socket.create_connection((\"127.0.0.1\",8080),2); s.close()'" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    volumes:
+      - staging_ragflow_data:/var/lib/ragflow
+    depends_on:
+      mysql:
+        condition: service_healthy
+      litellm:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  backend:
+    image: uza-point-backend:staging
+    container_name: staging_uza_backend
+    network_mode: host
+    env_file:
+      - ./backend/.env.staging
+    environment:
+      NODE_ENV: production
+      LITELLM_BASE_URL: http://127.0.0.1:4000
+      RAGFLOW_BASE_URL: http://127.0.0.1:8080
+      DATABASE_URL: postgres://medusa:medusa_password@127.0.0.1/medusa_db?sslmode=disable
+      PGSSLMODE: disable
+      REDIS_URL: redis://127.0.0.1:6379
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"const net=require('net'); const s=net.createConnection({port:9000},'127.0.0.1'); s.on('error',()=>process.exit(1)); s.on('connect',()=>{s.end(); process.exit(0)}); setTimeout(()=>process.exit(1),2000)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    command: sh -c "npx medusa db:migrate && npm run start"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      litellm:
+        condition: service_healthy
+      ragflow:
+        condition: service_healthy
+
+volumes:
+  staging_postgres_main_data:
+  staging_mysql_data:
+  staging_ragflow_data:
+  staging_redis_data:

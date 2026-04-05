@@ -42,6 +42,69 @@ Visit the [Quickstart Guide](https://docs.medusajs.com/learn/installation) to se
 
 Visit the [Docs](https://docs.medusajs.com/learn/installation#get-started) to learn more about our system requirements.
 
+For full backend documentation, see `backend/docs/README.md`.
+
+## Staging
+
+Use the staging compose stack to run the backend with a production-like service topology.
+
+1. Create or update `backend/.env.staging` with your secrets and service URLs.
+2. Start the stack with:
+
+   ```bash
+   docker-compose -f docker-compose.staging.yml up --build
+   ```
+
+3. The backend will be available at `http://localhost:9000` and Ragflow at `http://localhost:8080`.
+
+4. Enable telemetry in staging by setting `ENABLE_OTEL=true` and configuring `OTEL_EXPORTER`.
+
+## Production
+
+Use the production compose stack for VPS deployment on Hetzner or any Linux host.
+
+1. Create or update `backend/.env.prod` with your production domain values, secrets, and API keys.
+2. Add the required GitHub secrets for deployment:
+   - `VPS_HOST`
+   - `VPS_USER`
+   - `VPS_SSH_KEY`
+   - `VPS_DEPLOY_PATH`
+   - `VPS_KNOWN_HOSTS`
+3. Deploy using the production compose stack:
+
+   ```bash
+   docker-compose -f docker-compose.prod.yml up --build -d
+   ```
+
+4. On GitHub, the production deploy workflow is available at `.github/workflows/backend-prod-deploy.yml` and runs on pushes to `main`.
+
+5. The backend is reverse-proxied through Nginx on port `80`. Your public API and admin entry points are served by the same proxied backend endpoint.
+
+### Blue/green deployment
+
+The prod stack uses a blue/green deployment model:
+
+- `backend_blue` and `backend_green` are both defined in `docker-compose.prod.yml`.
+- `deploy/bluegreen-deploy.sh` builds the next inactive color, boots it, waits for a healthy `/health` response, then switches traffic via Nginx.
+- The previous color remains available until the switch is complete, so rollback can happen without downtime.
+
+### Rollback strategy
+
+Use `deploy/rollback.sh` to move traffic back to the previously active color if the new release is unhealthy or broken.
+
+- The rollback script brings the previous backend back online if needed.
+- It updates `deploy/nginx/active-backend.conf` and reloads Nginx.
+- The old container remains available after deployment so rollback is fast.
+
+## Admin link exposure
+
+To expose admin access correctly in production:
+
+- Set `ADMIN_CORS` and `AUTH_CORS` in `backend/.env.prod` to your admin UI domain.
+- Set `STORE_CORS` to your storefront domain.
+- Use `ADMIN_URL=https://your-admin.example.com` in `backend/.env.prod` as a reference for your admin UI host.
+- Medusa backend API requests are served from `https://your-backend.example.com`; admin UI should connect to that host through CORS.
+
 ## What is Medusa
 
 Medusa is a set of commerce modules and tools that allow you to build rich, reliable, and performant commerce applications without reinventing core commerce logic. The modules can be customized and used to build advanced ecommerce stores, marketplaces, or any product that needs foundational commerce primitives. All modules are open-source and freely available on npm.

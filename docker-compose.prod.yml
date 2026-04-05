@@ -1,0 +1,58 @@
+version: "3.8"
+
+services:
+  backend_blue:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: uza-point-backend:production_blue
+    container_name: prod_backend_blue
+    env_file:
+      - ./backend/.env.prod
+    environment:
+      DEPLOY_COLOR: blue
+    networks:
+      - prod_net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- --timeout=5 http://localhost:9000/health | grep -q 'ok' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend_green:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: uza-point-backend:production_green
+    container_name: prod_backend_green
+    env_file:
+      - ./backend/.env.prod
+    environment:
+      DEPLOY_COLOR: green
+    networks:
+      - prod_net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- --timeout=5 http://localhost:9000/health | grep -q 'ok' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  nginx:
+    image: nginx:stable-alpine
+    container_name: prod_nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./deploy/nginx/prod.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./deploy/nginx/active-backend.conf:/etc/nginx/conf.d/active-backend.conf:ro
+    depends_on:
+      - backend_blue
+      - backend_green
+    networks:
+      - prod_net
+
+networks:
+  prod_net:
+    driver: bridge
+
+volumes: {}

@@ -29,6 +29,12 @@ const SaleSnapshot = model.define("sale_snapshot", {
   sync_status: model.text().default("success"),
   sync_conflict: model.json().nullable(),
 
+  // AI Extraction Metadata (for photo-based sales)
+  extraction_source: model.text().nullable(), // "receipt" | "product" | null
+  extraction_confidence: model.bigNumber().nullable(), // 0-1 confidence score
+  extraction_raw: model.text().nullable(), // Raw AI response text for audit
+  extraction_timestamp: model.dateTime().nullable(), // When extraction occurred
+
   timestamp: model.dateTime(),
 })
 

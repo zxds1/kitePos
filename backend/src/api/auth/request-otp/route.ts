@@ -8,6 +8,7 @@ import { resolveShopAuthState } from "../_utils/shop-auth"
 import { hashOtp, hashPhone } from "../../../utils/hash"
 import { maskPhone } from "../../../utils/encryption"
 import { AuthRequestOtp } from "../validators"
+import { getDevBypassOtp, isAllowedDevBypassPhone } from "../_utils/dev-bypass"
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const otpChallengeService: OtpChallengeModuleService = req.scope.resolve(
@@ -18,7 +19,9 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
   const phoneNumber = body.phone_number
   const phoneHash = hashPhone(phoneNumber)
-  const otp = process.env.DEV_OTP_CODE ?? randomInt(1000, 10000).toString()
+  const otp = isAllowedDevBypassPhone(phoneNumber)
+    ? getDevBypassOtp()
+    : process.env.DEV_OTP_CODE ?? randomInt(1000, 10000).toString()
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000)
   const shopState = await resolveShopAuthState(req.scope, shopService, phoneHash)
 
