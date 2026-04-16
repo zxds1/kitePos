@@ -1,4 +1,8 @@
-/.codex
+.codex
+.config/
+.dartServer/
+.flutter
+.kilo/
 /flutter
 /uza_pos
 /fluter impl
