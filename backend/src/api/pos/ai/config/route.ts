@@ -10,6 +10,10 @@ import {
 const ShopAIConfigPayload = z.object({
   default_provider: z.string().trim().min(1).optional(),
   default_model: z.string().trim().min(1).optional(),
+  assistant_access_level: z
+    .enum(["read_only", "confirm_writes", "full_access"])
+    .optional(),
+  assistant_full_access: z.boolean().optional(),
 })
 
 function extractModelOptions(config: Record<string, unknown> | null) {
@@ -97,14 +101,52 @@ function shapeConfig(
     (shopConfig?.default_model?.toString().trim().length ?? 0) > 0
       ? String(shopConfig?.default_model)
       : platformConfig?.default_model?.toString() ?? "gpt-4o-mini"
+  const assistantAccessLevel = resolveAssistantAccessLevel(
+    shopConfig,
+    platformConfig
+  )
   return {
     default_provider: selectedProvider,
     default_model: selectedModel,
+    assistant_access_level: assistantAccessLevel,
+    assistant_full_access: assistantAccessLevel === "full_access",
     provider_options: providerOptions,
     model_options: modelOptions,
     total_tokens_used: Number(shopConfig?.total_tokens_used ?? platformConfig?.total_tokens_used ?? 0),
     total_cost: Number(shopConfig?.total_cost ?? platformConfig?.total_cost ?? 0),
   }
+}
+
+function resolveAssistantAccessLevel(
+  shopConfig: Record<string, unknown> | null,
+  platformConfig: Record<string, unknown> | null
+) {
+  const shopLevel = shopConfig?.assistant_access_level?.toString().trim()
+  if (
+    shopLevel === "read_only" ||
+    shopLevel === "confirm_writes" ||
+    shopLevel === "full_access"
+  ) {
+    return shopLevel
+  }
+
+  const platformLevel = platformConfig?.assistant_access_level?.toString().trim()
+  if (
+    platformLevel === "read_only" ||
+    platformLevel === "confirm_writes" ||
+    platformLevel === "full_access"
+  ) {
+    return platformLevel
+  }
+
+  if (
+    shopConfig?.assistant_full_access === true ||
+    platformConfig?.assistant_full_access === true
+  ) {
+    return "full_access"
+  }
+
+  return "confirm_writes"
 }
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
@@ -171,6 +213,18 @@ export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
     modelOptions,
     platform?.default_provider?.toString()
   )
+  const existingAccessLevel = resolveAssistantAccessLevel(
+    (existing as Record<string, unknown> | undefined) ?? null,
+    platform
+  )
+  const requestedAccessLevel =
+    parsed.data.assistant_access_level ??
+    (parsed.data.assistant_full_access === true
+      ? "full_access"
+      : parsed.data.assistant_full_access === false
+        ? "confirm_writes"
+        : undefined)
+  const resolvedAccessLevel = requestedAccessLevel ?? existingAccessLevel
 
   if (
     parsed.data.default_model &&
@@ -208,6 +262,8 @@ export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
       (existing as Record<string, unknown> | undefined)?.default_model ??
       platform?.default_model ??
       "gpt-4o-mini",
+    assistant_access_level: resolvedAccessLevel,
+    assistant_full_access: resolvedAccessLevel === "full_access",
     updated_at: new Date(),
   }
 

@@ -11,6 +11,10 @@ import {
   listNormalizedProducts,
   type NormalizedPosProduct,
 } from "../../admin/products/_utils"
+import {
+  listShopLocations,
+  type ShopLocationRecord,
+} from "../_utils/shop-locations"
 
 export const AnalyticsQuerySchema = z.object({
   start_date: z.coerce.date(),
@@ -24,6 +28,7 @@ export const AnalyticsQuerySchema = z.object({
 
 type SaleSnapshotRecord = {
   variant_id: string
+  location_id?: string | null
   payment_method?: string | null
   quantity_sold?: number | { value?: string | number } | null
   price_charged?: number | { value?: string | number } | null
@@ -33,6 +38,7 @@ type SaleSnapshotRecord = {
 
 type RestockRecord = {
   variant_id: string
+  location_id?: string | null
   quantity_received?: number | { value?: string | number } | null
   total_cost?: number | { value?: string | number } | null
   timestamp?: Date | string | null
@@ -47,6 +53,31 @@ type DailyAggregate = {
   date: Date
   revenue: number
   transactions: number
+}
+
+type BranchAggregate = {
+  location_id: string
+  location_name: string
+  location_code: string
+  location_type: string
+  total_revenue: number
+  total_transactions: number
+  average_transaction_value: number
+  cash_revenue: number
+  mpesa_revenue: number
+  cash_transactions: number
+  mpesa_transactions: number
+  estimated_cost_of_goods_sold: number
+  gross_profit_loss: number
+  gross_margin_percent: number
+  inventory_value: number
+  low_stock_count: number
+  restock_count: number
+  top_product_variant_id: string | null
+  top_product_name: string
+  top_product_revenue: number
+  top_product_units_sold: number
+  sales_share_percent: number
 }
 
 function normalizeSalesChannel(channel?: string | null) {
@@ -77,6 +108,7 @@ export async function buildAnalyticsSummary(
   const productMap = new Map(products.map((product) => [product.variant_id, product]))
   const restocks = await listRestocks(req, shopId, options)
   const snapshots = await listSaleSnapshots(req, shopId, startDate, endDate, options)
+  const locations = await listShopLocations(req.scope, shopId)
   const costByVariant = buildCostByVariant(products, restocks)
 
   let totalRevenue = 0
@@ -189,6 +221,26 @@ export async function buildAnalyticsSummary(
     productMap
   )
   const dailyTrends = buildFullDailyTrend(startDate, endDate, dailyMap)
+  const branchBreakdown = await buildBranchBreakdown({
+    req,
+    shopId,
+    locations,
+    selectedLocationId: options.locationId ?? null,
+    snapshots,
+    restocks,
+    totalRevenue,
+  })
+  const aiInsights = buildAnalyticsInsights({
+    salesSummary: {
+      totalRevenue,
+      grossProfitLoss,
+      grossMarginPercent,
+      inventoryValue,
+      totalTransactions,
+    },
+    branchBreakdown,
+    stockAlerts,
+  })
 
   const payload = {
     sales_summary: {
@@ -212,6 +264,8 @@ export async function buildAnalyticsSummary(
     daily_trends: dailyTrends,
     stock_alerts: stockAlerts,
     category_breakdown: categoryBreakdown,
+    branch_breakdown: branchBreakdown,
+    ai_insights: aiInsights,
     generated_at: new Date().toISOString(),
   }
 
@@ -408,6 +462,239 @@ async function listRestocks(
   )
 
   return restocks as RestockRecord[]
+}
+
+async function buildBranchBreakdown({
+  req,
+  shopId,
+  locations,
+  selectedLocationId,
+  snapshots,
+  restocks,
+  totalRevenue,
+}: {
+  req: MedusaRequest
+  shopId: string
+  locations: ShopLocationRecord[]
+  selectedLocationId: string | null
+  snapshots: SaleSnapshotRecord[]
+  restocks: RestockRecord[]
+  totalRevenue: number
+}): Promise<BranchAggregate[]> {
+  const scopeLocations = selectedLocationId
+    ? locations.filter((location) => location.id === selectedLocationId)
+    : locations
+
+  if (scopeLocations.length === 0) {
+    return []
+  }
+
+  const breakdown = await Promise.all(
+    scopeLocations.map(async (location) => {
+      const [locationProducts] = await Promise.all([
+        listNormalizedProducts(req, {
+          shopId,
+          locationId: location.id,
+        }),
+      ])
+      const locationSnapshots = snapshots.filter(
+        (snapshot) => snapshot.location_id === location.id
+      )
+      const locationRestocks = restocks.filter(
+        (restock) => restock.location_id === location.id
+      )
+
+      return buildBranchAggregate(
+        location,
+        locationProducts,
+        locationRestocks,
+        locationSnapshots,
+        totalRevenue
+      )
+    })
+  )
+
+  return breakdown.sort((a, b) => b.total_revenue - a.total_revenue)
+}
+
+function buildBranchAggregate(
+  location: ShopLocationRecord,
+  products: NormalizedPosProduct[],
+  restocks: RestockRecord[],
+  snapshots: SaleSnapshotRecord[],
+  totalRevenue: number
+): BranchAggregate {
+  const costByVariant = buildCostByVariant(products, restocks)
+  const perVariant = new Map<
+    string,
+    {
+      revenue: number
+      unitsSold: number
+      transactionCount: number
+    }
+  >()
+
+  let branchRevenue = 0
+  let branchCashRevenue = 0
+  let branchMpesaRevenue = 0
+  let branchCashTransactions = 0
+  let branchMpesaTransactions = 0
+  let branchEstimatedCostOfGoodsSold = 0
+
+  for (const snapshot of snapshots) {
+    const revenue = asNumber(snapshot.price_charged)
+    const unitsSold = asNumber(snapshot.quantity_sold)
+    const variantId = snapshot.variant_id
+    const paymentMethod =
+      snapshot.payment_method === "mpesa" ? "mpesa" : "cash"
+
+    branchRevenue += revenue
+    branchEstimatedCostOfGoodsSold +=
+      unitsSold * (costByVariant.get(variantId)?.costPerUnit ?? 0)
+
+    if (paymentMethod === "cash") {
+      branchCashRevenue += revenue
+      branchCashTransactions += 1
+    } else if (paymentMethod === "mpesa") {
+      branchMpesaRevenue += revenue
+      branchMpesaTransactions += 1
+    }
+
+    const productAggregate = perVariant.get(variantId) ?? {
+      revenue: 0,
+      unitsSold: 0,
+      transactionCount: 0,
+    }
+    productAggregate.revenue += revenue
+    productAggregate.unitsSold += unitsSold
+    productAggregate.transactionCount += 1
+    perVariant.set(variantId, productAggregate)
+  }
+
+  let inventoryValue = 0
+  let lowStockCount = 0
+  for (const product of products) {
+    const costPerUnit = costByVariant.get(product.variant_id)?.costPerUnit ?? 0
+    inventoryValue += product.stock_remaining * costPerUnit
+    if (product.stock_remaining <= (product.low_stock_threshold ?? 10)) {
+      lowStockCount += 1
+    }
+  }
+
+  const topProduct = Array.from(perVariant.entries())
+    .map(([variantId, aggregate]) => {
+      const product = products.find((item) => item.variant_id === variantId)
+      return {
+        variantId,
+        productName: product?.name ?? variantId,
+        revenue: aggregate.revenue,
+        unitsSold: aggregate.unitsSold,
+      }
+    })
+    .sort((a, b) => b.revenue - a.revenue)[0]
+
+  const totalTransactions = snapshots.length
+  const grossProfitLoss = branchRevenue - branchEstimatedCostOfGoodsSold
+  const grossMarginPercent =
+    branchRevenue > 0 ? (grossProfitLoss / branchRevenue) * 100 : 0
+  const averageTransactionValue =
+    totalTransactions > 0 ? branchRevenue / totalTransactions : 0
+  const salesSharePercent =
+    totalRevenue > 0 ? (branchRevenue / totalRevenue) * 100 : 0
+
+  return {
+    location_id: location.id,
+    location_name: location.name,
+    location_code: location.code,
+    location_type: location.location_type ?? "physical",
+    total_revenue: round(branchRevenue),
+    total_transactions: totalTransactions,
+    average_transaction_value: round(averageTransactionValue),
+    cash_revenue: round(branchCashRevenue),
+    mpesa_revenue: round(branchMpesaRevenue),
+    cash_transactions: branchCashTransactions,
+    mpesa_transactions: branchMpesaTransactions,
+    estimated_cost_of_goods_sold: round(branchEstimatedCostOfGoodsSold),
+    gross_profit_loss: round(grossProfitLoss),
+    gross_margin_percent: round(grossMarginPercent),
+    inventory_value: round(inventoryValue),
+    low_stock_count: lowStockCount,
+    restock_count: restocks.length,
+    top_product_variant_id: topProduct?.variantId ?? null,
+    top_product_name: topProduct?.productName ?? "No sales yet",
+    top_product_revenue: round(topProduct?.revenue ?? 0),
+    top_product_units_sold: round(topProduct?.unitsSold ?? 0),
+    sales_share_percent: round(salesSharePercent),
+  }
+}
+
+function buildAnalyticsInsights({
+  salesSummary,
+  branchBreakdown,
+  stockAlerts,
+}: {
+  salesSummary: {
+    totalRevenue: number
+    grossProfitLoss: number
+    grossMarginPercent: number
+    inventoryValue: number
+    totalTransactions: number
+  }
+  branchBreakdown: BranchAggregate[]
+  stockAlerts: Array<{ product_name: string; is_out_of_stock: boolean }>
+}) {
+  const insights: string[] = []
+
+  if (branchBreakdown.length > 0) {
+    const leader = branchBreakdown[0]
+    insights.push(
+      `${leader.location_name} leads with Ksh ${leader.total_revenue.toFixed(2)} and ${leader.sales_share_percent.toFixed(1)}% of branch sales.`
+    )
+
+    const mostPressured = [...branchBreakdown]
+      .sort((a, b) => (b.low_stock_count + b.restock_count) - (a.low_stock_count + a.restock_count))[0]
+    if (mostPressured) {
+      insights.push(
+        `${mostPressured.location_name} has the strongest stock pressure with ${mostPressured.low_stock_count} low-stock items and ${mostPressured.restock_count} restocks.`
+      )
+    }
+
+    const spread =
+      branchBreakdown.length > 1
+        ? leader.total_revenue -
+          branchBreakdown[branchBreakdown.length - 1].total_revenue
+        : 0
+    if (spread > 0) {
+      insights.push(
+        `Revenue is spread across ${branchBreakdown.length} branch${branchBreakdown.length === 1 ? '' : 'es'} with a Ksh ${spread.toFixed(2)} gap between the top and bottom branch.`
+      )
+    }
+  }
+
+  if (salesSummary.grossMarginPercent < 20) {
+    insights.push(
+      `Gross margin is at ${salesSummary.grossMarginPercent.toFixed(1)}%. Review pricing or procurement costs.`
+    )
+  } else {
+    insights.push(
+      `Gross profit is positive at Ksh ${salesSummary.grossProfitLoss.toFixed(2)} for this period.`
+    )
+  }
+
+  const outOfStockCount = stockAlerts.filter((item) => item.is_out_of_stock).length
+  if (outOfStockCount > 0) {
+    insights.push(
+      `${outOfStockCount} item${outOfStockCount === 1 ? '' : 's'} are out of stock and should be restocked.`
+    )
+  }
+
+  if (salesSummary.totalTransactions > 0) {
+    insights.push(
+      `The shop handled ${salesSummary.totalTransactions} orders and held ${salesSummary.inventoryValue.toFixed(2)} in tracked stock value.`
+    )
+  }
+
+  return insights.slice(0, 4)
 }
 
 function buildCostByVariant(

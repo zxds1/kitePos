@@ -29,6 +29,8 @@ export class Migration20260404110000 extends Migration {
         "pricing_ai_enabled" boolean not null default true,
         "marketing_ai_enabled" boolean not null default true,
         "analytics_ai_enabled" boolean not null default true,
+        "assistant_access_level" text not null default 'confirm_writes',
+        "assistant_full_access" boolean not null default false,
         "total_tokens_used" integer not null default 0,
         "total_cost" numeric not null default 0,
         "last_reset_at" timestamptz null,

@@ -55,6 +55,10 @@ const AiConfig = model.define("ai_config", {
   pricing_ai_enabled: model.boolean().default(true),
   marketing_ai_enabled: model.boolean().default(true),
   analytics_ai_enabled: model.boolean().default(true),
+  assistant_access_level: model
+    .enum(["read_only", "confirm_writes", "full_access"])
+    .default("confirm_writes"),
+  assistant_full_access: model.boolean().default(false),
   total_tokens_used: model.number().default(0),
   total_cost: model.bigNumber().default(0),
   last_reset_at: model.dateTime().nullable(),

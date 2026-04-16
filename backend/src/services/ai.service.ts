@@ -4,6 +4,7 @@ import { AI_CONFIG_MODULE } from "../modules/ai-config"
 import type AIConfigModuleService from "../modules/ai-config/service"
 import { AI_OPERATION_LOG_MODULE } from "../modules/ai-operation-log"
 import type AIOperationLogModuleService from "../modules/ai-operation-log/service"
+import { loadPrompt, renderPrompt } from "../utils/prompt-loader"
 
 type AIConfigRecord = Record<string, unknown>
 
@@ -217,6 +218,7 @@ export class AIService {
         max_tokens_per_day: 10000,
         max_cost_per_day: 50,
         chatbot_enabled: true,
+        assistant_full_access: false,
         chatbot_personality: "friendly",
         chatbot_language: "both",
         rag_enabled: true,
@@ -250,6 +252,7 @@ export class AIService {
         pricing_ai_enabled: true,
         marketing_ai_enabled: true,
         analytics_ai_enabled: true,
+        assistant_access_level: "confirm_writes",
         total_tokens_used: 0,
         total_cost: 0,
         last_reset_at: new Date(),
@@ -263,16 +266,27 @@ export class AIService {
   private defaultSystemPrompt(config: AIConfigRecord) {
     const personality = String(config.chatbot_personality ?? "friendly")
     const language = String(config.chatbot_language ?? "both")
-    return [
-      "You assist Kenyan retail and wholesale shops on Trace.",
-      `Use a ${personality} tone.`,
+    const languageInstruction =
       language === "sw"
         ? "Respond in Swahili."
         : language === "en"
           ? "Respond in English."
-          : "Respond in either English or Swahili based on the prompt.",
-      "Keep answers concise, accurate, and practical.",
-    ].join(" ")
+          : "Respond in either English or Swahili based on the prompt."
+    return renderPrompt(
+      loadPrompt(
+        "ai/default-system-prompt.md",
+        [
+          "You assist Kenyan retail and wholesale shops on Trace Commerce.",
+          "Use a {{personality}} tone.",
+          "{{language_instruction}}",
+          "Keep answers concise, accurate, and practical.",
+        ].join(" ")
+      ),
+      {
+        personality,
+        language_instruction: languageInstruction,
+      }
+    )
   }
 
   private buildModelFallbacks(config: AIConfigRecord, requestedModel?: string) {

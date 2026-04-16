@@ -11,12 +11,20 @@ import {
 } from "../../../auth/_utils/jwt"
 import { getAuthorizedShop } from "../../settings/_utils"
 import { listNormalizedProducts } from "../../../admin/products/_utils"
-import { AIService } from "../../../../services/ai.service"
+import { ShopAssistantService } from "../../../../services/shop-assistant.service"
 
 const CreateStoreSchema = z.object({
   theme_name: z.string().trim().min(1).default("smart-modern"),
   color_seed: z.string().trim().min(1).optional(),
   tagline_hint: z.string().trim().min(1).optional(),
+  hero_title: z.string().trim().min(1).optional(),
+  hero_subtitle: z.string().trim().min(1).optional(),
+  seo_description: z.string().trim().min(1).optional(),
+  sharing_message: z.string().trim().min(1).optional(),
+  selected_product_ids: z.array(z.string().trim().min(1)).optional(),
+  section_keys: z.array(z.string().trim().min(1)).optional(),
+  store_slug: z.string().trim().min(1).optional(),
+  use_ai_copy: z.boolean().optional().default(true),
 })
 
 function slugify(value: string) {
@@ -71,36 +79,38 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   }
 
   const products = await listNormalizedProducts(req, { shopId: auth.shop_id })
-  const featuredProducts = products.slice(0, 6).map((product) => ({
+  const selectedProductIds = parsed.data.selected_product_ids ?? []
+  const selectedProducts = selectedProductIds.length > 0
+    ? selectedProductIds
+        .map((id) => products.find((product) => product.variant_id === id))
+        .filter((product): product is (typeof products)[number] => Boolean(product))
+    : products.slice(0, 6)
+  const featuredProducts = selectedProducts.map((product) => ({
     name: product.name,
     category: product.category,
     price: product.selling_units[0]?.["price"] ?? null,
     image_url: product.image_url,
   }))
-  const slug = slugify(String(shop.shop_name ?? "store"))
-  const publicUrl = buildStoreUrl(slug)
-  const aiService = new AIService(req.scope)
-
-  const generated = await aiService.generateJson(
-    {
-      shopId: auth.shop_id,
-      operationType: "store_generation",
-      prompt: `Create storefront JSON for ${shop.shop_name}. Theme ${parsed.data.theme_name}. Optional color seed ${parsed.data.color_seed ?? "none"}. Optional tagline hint ${parsed.data.tagline_hint ?? "none"}. Products: ${JSON.stringify(featuredProducts)}.`,
-      maxTokens: 500,
-      metadata: { theme_name: parsed.data.theme_name, product_count: featuredProducts.length },
-    },
-    {
-      hero_title: `${shop.shop_name} online`,
-      hero_subtitle: parsed.data.tagline_hint ?? "Shop trusted products with fast local fulfilment.",
-      sections: [
-        "featured_products",
-        "mpesa_checkout",
-        "chat_support",
-      ],
-      seo_description: `Buy from ${shop.shop_name} online on Trace.`,
-      accent_color: parsed.data.color_seed ?? "#195E86",
-    }
+  const slug = slugify(
+    parsed.data.store_slug ?? String(shop.shop_name ?? "store"),
   )
+  const publicUrl = buildStoreUrl(slug)
+  const assistantService = new ShopAssistantService(req)
+
+  const generated = parsed.data.use_ai_copy
+      ? await assistantService.generateStoreDraft({
+        shopId: auth.shop_id,
+        shopName: String(shop.shop_name ?? "Store"),
+        query: `Create a storefront for ${String(shop.shop_name ?? "Store")}. Theme ${parsed.data.theme_name}. Optional color seed ${parsed.data.color_seed ?? "none"}. Optional tagline hint ${parsed.data.tagline_hint ?? "none"}. Products: ${JSON.stringify(featuredProducts)}.`,
+        model: undefined,
+      })
+    : {}
+
+  const sectionKeys = parsed.data.section_keys?.length
+    ? parsed.data.section_keys
+    : (generated as Record<string, unknown>).section_keys instanceof Array
+      ? (generated as Record<string, unknown>).section_keys as string[]
+      : ["featured_products", "mpesa_checkout", "chat_support"]
 
   const [existing] = await storeService.listOnlineStores(
     { shop_id: auth.shop_id },
@@ -118,28 +128,36 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     status: "published",
     theme_name: parsed.data.theme_name,
     theme_config: {
-      accent_color: (generated as Record<string, unknown>).accent_color ?? parsed.data.color_seed ?? "#195E86",
+      accent_color:
+        (generated as Record<string, unknown>).color_seed ??
+        parsed.data.color_seed ??
+        "#195E86",
       theme_name: parsed.data.theme_name,
     },
     storefront_content: {
       hero_title:
-        (generated as Record<string, unknown>).hero_title ?? `${shop.shop_name} online`,
+        parsed.data.hero_title ??
+        (generated as Record<string, unknown>).hero_title ??
+        `${shop.shop_name} online`,
       hero_subtitle:
+        parsed.data.hero_subtitle ??
         (generated as Record<string, unknown>).hero_subtitle ??
         "Order products online with real-time stock visibility.",
       featured_products: featuredProducts,
-      sections:
-        (generated as Record<string, unknown>).sections ??
-        ["featured_products", "mpesa_checkout", "chat_support"],
+      sections: sectionKeys,
     },
     seo_metadata: {
       title: `${shop.shop_name} | Trace`,
       description:
+        parsed.data.seo_description ??
         (generated as Record<string, unknown>).seo_description ??
         `Shop ${shop.shop_name} online with M-Pesa checkout.`,
     },
     sharing_metadata: {
-      whatsapp_text: `Browse ${shop.shop_name} online: ${publicUrl}`,
+      whatsapp_text:
+        parsed.data.sharing_message ??
+        (generated as Record<string, unknown>).sharing_message ??
+        `Browse ${shop.shop_name} online: ${publicUrl}`,
       sms_text: `${shop.shop_name} is now online. Visit ${publicUrl}`,
     },
     generation_error: null,

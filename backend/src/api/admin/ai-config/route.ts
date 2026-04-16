@@ -11,6 +11,10 @@ const AIConfigPayload = z.object({
   litellm_api_key: z.string().optional().nullable(),
   default_provider: z.string().trim().min(1).optional(),
   default_model: z.string().trim().min(1).optional(),
+  assistant_access_level: z
+    .enum(["read_only", "confirm_writes", "full_access"])
+    .optional(),
+  assistant_full_access: z.boolean().optional(),
   provider_options: z.array(z.string().trim().min(1)).optional(),
   model_options: z.array(z.string().trim().min(1)).optional(),
   fallback_models: z.array(z.string().trim().min(1)).optional(),
@@ -69,6 +73,7 @@ function shapeConfig(config: Record<string, unknown> | null) {
       ? ((config.fallback_models as Record<string, unknown>).values as unknown[])
       : []
 
+  const assistantAccessLevel = resolveAssistantAccessLevel(config)
   return {
     id: config.id,
     scope: config.scope,
@@ -98,6 +103,8 @@ function shapeConfig(config: Record<string, unknown> | null) {
     intent_rules: config.intent_rules ?? {},
     escalation_rules: config.escalation_rules ?? {},
     chatbot_enabled: config.chatbot_enabled === true,
+    assistant_access_level: assistantAccessLevel,
+    assistant_full_access: assistantAccessLevel === "full_access",
     chatbot_personality: config.chatbot_personality,
     chatbot_language: config.chatbot_language,
     chatbot_welcome_message: config.chatbot_welcome_message,
@@ -135,6 +142,21 @@ function shapeConfig(config: Record<string, unknown> | null) {
     is_active: config.is_active !== false,
     updated_at: config.updated_at,
   }
+}
+
+function resolveAssistantAccessLevel(config: Record<string, unknown> | null) {
+  const level = config?.assistant_access_level?.toString().trim()
+  if (
+    level === "read_only" ||
+    level === "confirm_writes" ||
+    level === "full_access"
+  ) {
+    return level
+  }
+  if (config?.assistant_full_access === true) {
+    return "full_access"
+  }
+  return "confirm_writes"
 }
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
