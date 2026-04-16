@@ -1,5 +1,3 @@
-import { describe, it, expect, beforeEach, vi } from "vitest"
-
 describe("POST /pos/ai/match-products Endpoint", () => {
   describe("Request Validation", () => {
     it("should require extracted_items array", () => {

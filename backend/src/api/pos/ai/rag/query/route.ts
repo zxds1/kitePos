@@ -12,6 +12,7 @@ import { RAGRouterService } from "../../../../../services/rag-router.service"
 const QuerySchema = z.object({
   query: z.string().trim().min(1),
   intent: z.string().trim().min(1).optional().nullable(),
+  model: z.string().trim().min(1).optional().nullable(),
 })
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
@@ -42,6 +43,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     shopId: auth.shop_id,
     shopName: String(shop.shop_name ?? "Trace Shop"),
     intent: parsed.data.intent ?? undefined,
+    model: parsed.data.model ?? undefined,
   })
 
   res.status(200).json({

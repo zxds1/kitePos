@@ -81,6 +81,7 @@ function createMockResponse<T>() {
 
 async function invokeBatchSales(
   scope: MedusaRequest["scope"],
+  headers: Record<string, string>,
   body: Record<string, unknown>
 ) {
   const { response, state } = createMockResponse<Record<string, unknown>>()
@@ -88,6 +89,9 @@ async function invokeBatchSales(
   await postBatchSales(
     {
       scope,
+      headers: {
+        authorization: headers.authorization ?? headers.Authorization,
+      },
       validatedBody: body,
     } as MedusaRequest,
     response
@@ -501,30 +505,34 @@ medusaIntegrationTestRunner({
 
         const oil = oilResponse.data.product as PosProduct
         const mpesaSaleId = `offline-mpesa:${randomUUID()}`
-        const syncResponse = await invokeBatchSales(getContainer(), {
-          shop_id: shopId,
-          sales: [
-            {
-              client_transaction_id: mpesaSaleId,
-              order_id: `order:${randomUUID()}`,
-              variant_id: oil.variant_id,
-              shop_id: shopId,
-              inventory_type: "bulk_liquid",
-              unit_sold: "1L",
-              quantity_sold: 1,
-              conversion_factor_snapshot: 1,
-              deduction_value: 1,
-              stock_before: 20,
-              stock_after: 19,
-              price_charged: 260,
-              payment_method: "mpesa",
-              mpesa_receipt_number: "QKH1234567",
-              mpesa_customer_phone: "254712345678",
-              amount_paid: 260,
-              timestamp: new Date().toISOString(),
-            },
-          ],
-        })
+        const syncResponse = await invokeBatchSales(
+          getContainer(),
+          authHeaders,
+          {
+            shop_id: shopId,
+            sales: [
+              {
+                client_transaction_id: mpesaSaleId,
+                order_id: `order:${randomUUID()}`,
+                variant_id: oil.variant_id,
+                shop_id: shopId,
+                inventory_type: "bulk_liquid",
+                unit_sold: "1L",
+                quantity_sold: 1,
+                conversion_factor_snapshot: 1,
+                deduction_value: 1,
+                stock_before: 20,
+                stock_after: 19,
+                price_charged: 260,
+                payment_method: "mpesa",
+                mpesa_receipt_number: "QKH1234567",
+                mpesa_customer_phone: "254712345678",
+                amount_paid: 260,
+                timestamp: new Date().toISOString(),
+              },
+            ],
+          }
+        )
 
         expect(syncResponse.statusCode).toBe(200)
         expect(syncResponse.body?.results).toEqual([

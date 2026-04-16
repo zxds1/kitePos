@@ -1,25 +1,26 @@
-import { describe, it, expect, beforeEach, vi } from "vitest"
-import AIExtractionService from "../../../services/AIExtractionService"
+import AIExtractionService from "../AIExtractionService"
 import { MedusaContainer } from "@medusajs/framework"
 
 // Mock fetch for testing
-global.fetch = vi.fn()
+global.fetch = jest.fn() as any
 
 describe("AIExtractionService", () => {
   let extractionService: AIExtractionService
   let mockContainer: Partial<MedusaContainer>
 
   beforeEach(() => {
+    ;(global.fetch as jest.Mock).mockReset()
+
     // Create mock logger
     const mockLogger = {
-      info: vi.fn(),
-      warn: vi.fn(),
-      error: vi.fn(),
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
     }
 
     // Create mock container
     mockContainer = {
-      resolve: vi.fn((key: string) => {
+      resolve: jest.fn((key: string) => {
         if (key === "logger") return mockLogger
         return null
       }),
@@ -35,7 +36,7 @@ describe("AIExtractionService", () => {
 
       const mockResponse = {
         ok: true,
-        json: vi.fn().mockResolvedValue({
+        json: jest.fn().mockResolvedValue({
           choices: [
             {
               message: {
@@ -47,7 +48,7 @@ describe("AIExtractionService", () => {
         }),
       }
 
-      ;(global.fetch as any).mockResolvedValueOnce(mockResponse)
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce(mockResponse)
 
       const result = await extractionService.extractSalesFromImage(
         mockBase64,
@@ -76,7 +77,7 @@ describe("AIExtractionService", () => {
 
       const mockResponse = {
         ok: true,
-        json: vi.fn().mockResolvedValue({
+        json: jest.fn().mockResolvedValue({
           choices: [
             {
               message: {
@@ -87,7 +88,7 @@ describe("AIExtractionService", () => {
         }),
       }
 
-      ;(global.fetch as any).mockResolvedValueOnce(mockResponse)
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce(mockResponse)
 
       const result = await extractionService.extractSalesFromImage(
         mockBase64,
@@ -105,7 +106,7 @@ describe("AIExtractionService", () => {
 
       const mockResponse = {
         ok: true,
-        json: vi.fn().mockResolvedValue({
+        json: jest.fn().mockResolvedValue({
           choices: [
             {
               message: {
@@ -117,7 +118,7 @@ describe("AIExtractionService", () => {
         }),
       }
 
-      ;(global.fetch as any).mockResolvedValueOnce(mockResponse)
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce(mockResponse)
 
       const result = await extractionService.extractSalesFromImage(
         mockBase64,
@@ -135,7 +136,7 @@ describe("AIExtractionService", () => {
 
       const mockResponse = {
         ok: true,
-        json: vi.fn().mockResolvedValue({
+        json: jest.fn().mockResolvedValue({
           choices: [
             {
               message: {
@@ -147,7 +148,7 @@ describe("AIExtractionService", () => {
         }),
       }
 
-      ;(global.fetch as any).mockResolvedValueOnce(mockResponse)
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce(mockResponse)
 
       const result = await extractionService.extractSalesFromImage(
         mockBase64,
@@ -165,12 +166,12 @@ describe("AIExtractionService", () => {
       const mockResponse = {
         ok: false,
         status: 500,
-        json: vi.fn().mockResolvedValue({
+        json: jest.fn().mockResolvedValue({
           message: "Internal server error",
         }),
       }
 
-      ;(global.fetch as any).mockResolvedValueOnce(mockResponse)
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce(mockResponse)
 
       await expect(
         extractionService.extractSalesFromImage(mockBase64, "receipt")
@@ -183,7 +184,7 @@ describe("AIExtractionService", () => {
 
       const mockResponse = {
         ok: true,
-        json: vi.fn().mockResolvedValue({
+        json: jest.fn().mockResolvedValue({
           choices: [
             {
               message: {
@@ -195,7 +196,7 @@ describe("AIExtractionService", () => {
         }),
       }
 
-      ;(global.fetch as any).mockResolvedValueOnce(mockResponse)
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce(mockResponse)
 
       const result = await extractionService.extractSalesFromImage(
         mockBase64,
@@ -214,7 +215,7 @@ describe("AIExtractionService", () => {
 
       const mockResponse = {
         ok: true,
-        json: vi.fn().mockResolvedValue({
+        json: jest.fn().mockResolvedValue({
           choices: [
             {
               message: {
@@ -226,7 +227,7 @@ describe("AIExtractionService", () => {
         }),
       }
 
-      ;(global.fetch as any).mockResolvedValueOnce(mockResponse)
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce(mockResponse)
 
       const result = await extractionService.extractSalesFromImage(
         mockBase64,
@@ -246,7 +247,7 @@ describe("AIExtractionService", () => {
 
       const mockResponse = {
         ok: true,
-        json: vi.fn().mockResolvedValue({
+        json: jest.fn().mockResolvedValue({
           choices: [
             {
               message: {
@@ -257,7 +258,7 @@ describe("AIExtractionService", () => {
         }),
       }
 
-      ;(global.fetch as any).mockResolvedValueOnce(mockResponse)
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce(mockResponse)
 
       const beforeTime = new Date()
       const result = await extractionService.extractSalesFromImage(

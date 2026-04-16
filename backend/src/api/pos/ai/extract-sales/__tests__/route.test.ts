@@ -1,29 +1,4 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from "vitest"
-import { POST, GET } from "../extract-sales/route"
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-
-// Mock the AIExtractionService
-vi.mock("../../../../services/AIExtractionService", () => {
-  return {
-    default: vi.fn().mockImplementation(() => ({
-      extractSalesFromImage: vi.fn(async (base64: string, mode: string) => {
-        if (mode === "error") {
-          throw new Error("Extraction failed")
-        }
-        return {
-          items: [
-            { name: "Test Item", quantity: 1, confidence: 0.9 },
-          ],
-          raw_extraction: "Mock extraction result",
-          extraction_mode: mode,
-          model_used: "gpt-4o-mini",
-          confidence_average: 0.9,
-          timestamp: new Date().toISOString(),
-        }
-      }),
-    })),
-  }
-})
 
 describe("Sales Extraction Endpoint", () => {
   let req: Partial<MedusaRequest>
@@ -32,12 +7,12 @@ describe("Sales Extraction Endpoint", () => {
   const createMockRequest = (body: Record<string, unknown> = {}) => ({
     body,
     scope: {
-      resolve: vi.fn((key: string) => {
+      resolve: jest.fn((key: string) => {
         if (key === "logger") {
           return {
-            info: vi.fn(),
-            warn: vi.fn(),
-            error: vi.fn(),
+            info: jest.fn(),
+            warn: jest.fn(),
+            error: jest.fn(),
           }
         }
         return null
@@ -47,8 +22,8 @@ describe("Sales Extraction Endpoint", () => {
 
   const createMockResponse = () => {
     const response: any = {
-      status: vi.fn().mockReturnThis(),
-      json: vi.fn().mockReturnThis(),
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockReturnThis(),
     }
     return response
   }
@@ -59,7 +34,7 @@ describe("Sales Extraction Endpoint", () => {
   })
 
   afterEach(() => {
-    vi.clearAllMocks()
+    jest.clearAllMocks()
   })
 
   describe("POST /pos/ai/extract-sales", () => {

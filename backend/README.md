@@ -19,6 +19,11 @@
 <p align="center">
   Building blocks for digital commerce
 </p>
+
+## Project Onboarding
+
+If you are joining this repository, start with [docs/project-onboarding.md](../docs/project-onboarding.md) for a practical explanation of the backend, storefront, and POS app.
+
 <p align="center">
   <a href="https://github.com/medusajs/medusa/blob/master/CONTRIBUTING.md">
     <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat" alt="PRs welcome!" />

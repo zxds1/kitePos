@@ -1,5 +1,3 @@
-import { describe, it, expect } from "vitest"
-
 describe("POST /pos/ai/hybrid-match Hybrid Text + Visual Endpoint", () => {
   describe("Request Validation", () => {
     it("should require image_base64 parameter", () => {
@@ -383,7 +381,7 @@ describe("GET /pos/ai/hybrid-match Info Endpoint", () => {
       features: {
         extraction: "LLM-based product name extraction from photos",
         text_matching: "Fuzzy string matching against inventory (80%+ similarity)",
-        visual_matching: "LLM image comparison against product photos",
+        visual_matching: "LLM visual image comparison against product photos",
         hybrid_scoring: "Combined text (60%) + visual (40%) scoring",
       },
     }

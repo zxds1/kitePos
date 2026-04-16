@@ -12,6 +12,7 @@ type RetrieveInput = {
   maxContextItems?: number
   similarityThreshold?: number
   operationType: string
+  model?: string
 }
 
 type EmbedInput = {
@@ -78,6 +79,7 @@ export class RAGPgvectorService {
       operationType: input.operationType,
       prompt: this.buildPrompt(input.query, contextItems),
       maxTokens: 500,
+      model: input.model,
       metadata: {
         rag_source: "pgvector",
         entity_types: entityTypes,

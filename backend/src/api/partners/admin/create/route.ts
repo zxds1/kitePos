@@ -3,6 +3,7 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { z } from "zod"
 import { PARTNER_MODULE } from "../../../../modules/partner"
 import type PartnerModuleService from "../../../../modules/partner/service"
+import { BillingService } from "../../../../services/billing.service"
 import { hashSecret } from "../../../../utils/hash"
 
 const CreatePartnerSchema = z.object({
@@ -47,6 +48,36 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     },
   ])
 
+  const billingService = new BillingService()
+  let billingCustomer
+  try {
+    billingCustomer = await billingService.createCustomer({
+      partnerId: partner.id,
+      email: partner.billing_email,
+      name: partner.name,
+    })
+  } catch (error) {
+    await (partnerService as unknown as {
+      deletePartners: (ids: string[]) => Promise<unknown>
+    }).deletePartners([partner.id])
+
+    res.status(502).json({
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Unable to provision partner billing customer",
+    })
+    return
+  }
+
+  await partnerService.updatePartners([
+    {
+      id: partner.id,
+      stripe_customer_id: billingCustomer.customer_id,
+    },
+  ])
+
   res.status(201).json({
     success: true,
     partner: {
@@ -56,6 +87,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       billing_tier: partner.billing_tier,
       permissions: partner.permissions,
       api_key_last4: partner.api_key_last4,
+      stripe_customer_id: billingCustomer.customer_id,
     },
     api_key: apiKey,
     message: "Partner created. Store this API key now; it will not be returned again.",

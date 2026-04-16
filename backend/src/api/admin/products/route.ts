@@ -166,21 +166,22 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     return
   }
 
-  const requestBody = (req as PosCreateBodyCarrier).pos_product_body ?? req.body
-  const parsed = normalizeCreateProductInput(requestBody)
-  if (!parsed.success) {
-    res.status(400).json({
-      success: false,
-      message: "Invalid request format",
-      errors: parsed.error.flatten(),
-    })
-    return
-  }
+  try {
+    const requestBody = (req as PosCreateBodyCarrier).pos_product_body ?? req.body
+    const parsed = normalizeCreateProductInput(requestBody)
+    if (!parsed.success) {
+      res.status(400).json({
+        success: false,
+        message: "Invalid request format",
+        errors: parsed.error.flatten(),
+      })
+      return
+    }
 
-  const body = parsed.data
-  const inventoryConfigService: InventoryConfigModuleService = req.scope.resolve(
-    INVENTORY_CONFIG_MODULE
-  )
+    const body = parsed.data
+    const inventoryConfigService: InventoryConfigModuleService = req.scope.resolve(
+      INVENTORY_CONFIG_MODULE
+    )
   const restockService: RestockModuleService = req.scope.resolve(RESTOCK_MODULE)
   const storeModuleService = req.scope.resolve(Modules.STORE)
   const stockLocationService = req.scope.resolve(Modules.STOCK_LOCATION)
@@ -407,22 +408,30 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     model_name: body.model_name ?? null,
   }
 
-  await new RAGRouterService(req.scope).embedEntity({
-    entityType: "product",
-    entityId: createdVariant.id,
-    shopId,
-    contentText: buildProductEmbeddingText(normalizedProduct),
-    contentMetadata: {
-      category: normalizedProduct.category,
-      brand: normalizedProduct.brand,
-      price: body.selling_units[0]?.price ?? 0,
-      stock: normalizedProduct.stock_remaining,
-      variant_id: createdVariant.id,
-    },
-  })
+    await new RAGRouterService(req.scope).embedEntity({
+      entityType: "product",
+      entityId: createdVariant.id,
+      shopId,
+      contentText: buildProductEmbeddingText(normalizedProduct),
+      contentMetadata: {
+        category: normalizedProduct.category,
+        brand: normalizedProduct.brand,
+        price: body.selling_units[0]?.price ?? 0,
+        stock: normalizedProduct.stock_remaining,
+        variant_id: createdVariant.id,
+      },
+    })
 
-  res.status(201).json({
-    success: true,
-    product: normalizedProduct,
-  })
+    res.status(201).json({
+      success: true,
+      product: normalizedProduct,
+    })
+  } catch (error) {
+    console.error("[ERROR pos/products]", error)
+    res.status(500).json({
+      success: false,
+      message: error instanceof Error ? error.message : "Unknown error",
+      stack: error instanceof Error ? error.stack : undefined,
+    })
+  }
 }

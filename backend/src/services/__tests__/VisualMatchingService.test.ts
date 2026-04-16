@@ -1,23 +1,24 @@
-import { describe, it, expect, beforeEach, vi } from "vitest"
-import VisualMatchingService from "../../../services/VisualMatchingService"
+import VisualMatchingService from "../VisualMatchingService"
 import { MedusaContainer } from "@medusajs/framework"
 
-global.fetch = vi.fn()
+global.fetch = jest.fn() as any
 
 describe("VisualMatchingService", () => {
   let visualService: VisualMatchingService
   let mockContainer: Partial<MedusaContainer>
 
   beforeEach(() => {
+    ;(global.fetch as jest.Mock).mockReset()
+
     const mockLogger = {
-      info: vi.fn(),
-      warn: vi.fn(),
-      error: vi.fn(),
-      debug: vi.fn(),
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      debug: jest.fn(),
     }
 
     mockContainer = {
-      resolve: vi.fn((key: string) => {
+      resolve: jest.fn((key: string) => {
         if (key === "logger") return mockLogger
         return null
       }),
@@ -68,9 +69,9 @@ describe("VisualMatchingService", () => {
     it("should return top N matches sorted by similarity", async () => {
       const mockBase64 = "base64encodedimage"
 
-      ;(global.fetch as any).mockResolvedValue({
+      ;(global.fetch as jest.Mock).mockResolvedValue({
         ok: true,
-        json: vi.fn().mockResolvedValue({
+        json: jest.fn().mockResolvedValue({
           choices: [
             {
               message: {
@@ -93,9 +94,9 @@ describe("VisualMatchingService", () => {
     it("should include match reason in results", async () => {
       const mockBase64 = "base64encodedimage"
 
-      ;(global.fetch as any).mockResolvedValue({
+      ;(global.fetch as jest.Mock).mockResolvedValue({
         ok: true,
-        json: vi.fn().mockResolvedValue({
+        json: jest.fn().mockResolvedValue({
           choices: [
             {
               message: {
@@ -119,9 +120,9 @@ describe("VisualMatchingService", () => {
     it("should handle API failures gracefully", async () => {
       const mockBase64 = "base64encodedimage"
 
-      ;(global.fetch as any).mockResolvedValue({
+      ;(global.fetch as jest.Mock).mockResolvedValue({
         ok: false,
-        json: vi.fn().mockResolvedValue({
+        json: jest.fn().mockResolvedValue({
           message: "API error",
         }),
       })
@@ -166,9 +167,9 @@ describe("VisualMatchingService", () => {
     })
 
     it("should handle malformed JSON response", async () => {
-      ;(global.fetch as any).mockResolvedValue({
+      ;(global.fetch as jest.Mock).mockResolvedValue({
         ok: true,
-        json: vi.fn().mockResolvedValue({
+        json: jest.fn().mockResolvedValue({
           choices: [
             {
               message: {
@@ -187,9 +188,9 @@ describe("VisualMatchingService", () => {
 
   describe("describeImage", () => {
     it("should return image description from LLM", async () => {
-      ;(global.fetch as any).mockResolvedValue({
+      ;(global.fetch as jest.Mock).mockResolvedValue({
         ok: true,
-        json: vi.fn().mockResolvedValue({
+        json: jest.fn().mockResolvedValue({
           choices: [
             {
               message: {
@@ -207,7 +208,7 @@ describe("VisualMatchingService", () => {
     })
 
     it("should return fallback message on error", async () => {
-      ;(global.fetch as any).mockResolvedValue({
+      ;(global.fetch as jest.Mock).mockResolvedValue({
         ok: false,
       })
 

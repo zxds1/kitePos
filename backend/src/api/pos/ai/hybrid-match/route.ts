@@ -281,7 +281,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     features: {
       extraction: "LLM-based product name extraction from photos",
       text_matching: "Fuzzy string matching against inventory (80%+ similarity)",
-      visual_matching: "LLM image comparison against product photos",
+      visual_matching: "LLM visual image comparison against product photos",
       hybrid_scoring: "Combined text (60%) + visual (40%) scoring",
     },
     defaults: {

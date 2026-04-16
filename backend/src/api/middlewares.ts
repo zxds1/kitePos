@@ -19,7 +19,9 @@ import { AdminCreateShop } from "./admin/shops/validators"
 import { createRedisBackedRateLimiter } from "./admin/_utils/rate-limit"
 import { AdminValidateSaleRequest } from "./admin/inventory/validate-sale/validator"
 import {
+  AuthChangePin,
   AuthRegisterShop,
+  AuthRefreshToken,
   AuthRequestOtp,
   AuthVerifyOtp,
 } from "./auth/validators"
@@ -60,6 +62,11 @@ export default defineMiddlewares({
       method: ["POST"],
       matcher: "/auth/verify-otp",
       middlewares: [validateAndTransformBody(AuthVerifyOtp)],
+    },
+    {
+      method: ["POST"],
+      matcher: "/auth/refresh-token",
+      middlewares: [validateAndTransformBody(AuthRefreshToken)],
     },
     {
       method: ["POST"],

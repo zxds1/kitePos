@@ -3,6 +3,7 @@ import { z } from "zod"
 import { DataAggregationService } from "../../../../services/data-aggregation.service"
 import { ComplianceLoggerService } from "../../../../services/compliance-logger.service"
 import { authenticatePartnerRequest, getRequestMetadata } from "../../_utils/auth"
+import { billPartnerExport } from "../../_utils/billing"
 
 const ProductQuerySchema = z.object({
   start_date: z.coerce.date(),
@@ -87,6 +88,23 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     return
   }
 
+  let billing
+  try {
+    billing = await billPartnerExport({
+      partner: auth.partner,
+      rowsExported: result.data.length,
+      dataType: "products",
+      format: "json",
+    })
+  } catch (error) {
+    res.status(502).json({
+      success: false,
+      message:
+        error instanceof Error ? error.message : "Unable to bill partner export",
+    })
+    return
+  }
+
   await new ComplianceLoggerService(req.scope).logDataAccess({
     partnerId: auth.partner.id,
     action: "query",
@@ -104,6 +122,10 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     consentVerified: true,
     aggregationThresholdMet: true,
     quotaUsed: result.data.length,
+    billingAmount: billing.amount,
   })
-  res.status(200).json(result)
+  res.status(200).json({
+    ...result,
+    billing,
+  })
 }

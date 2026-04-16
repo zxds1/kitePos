@@ -40,6 +40,10 @@ export const AuthLoginPin = z.object({
   device_id: z.string().min(8, "Device id is required"),
 })
 
+export const AuthRefreshToken = z.object({
+  refresh_token: z.string().min(10, "Refresh token is required"),
+})
+
 export const AuthChangePin = z.object({
   pin: z.string().regex(/^[0-9]{4,8}$/, "PIN must be 4 to 8 digits"),
   device_id: z.string().min(8, "Device id is required"),

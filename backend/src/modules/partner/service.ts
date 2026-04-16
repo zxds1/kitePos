@@ -7,11 +7,13 @@ import type DataExportLogModuleService from "../data-export-log/service"
 type PartnerRecord = {
   id: string
   name: string
+  billing_email: string
   api_key_hash: string
   api_key_last4?: string | null
   is_active?: boolean
   is_verified?: boolean
   billing_tier: string
+  stripe_customer_id?: string | null
   rate_limit?: number | null
   quota_monthly: number
   last_accessed_at?: Date | null

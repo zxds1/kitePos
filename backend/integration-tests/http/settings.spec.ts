@@ -14,6 +14,7 @@ function buildAuthHeaders(shopId: string, phoneNumber: string) {
     phone_number: phoneNumber,
     shop_id: shopId,
     is_registered: true,
+    role: "owner",
   })
 
   return {

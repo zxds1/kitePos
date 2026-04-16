@@ -69,11 +69,25 @@ export function issuePosAuthTokens(payload: PosAuthTokenPayload) {
   }
 }
 
+export function verifyPosRefreshToken(token: string) {
+  try {
+    const decoded = jwt.verify(token, getJwtSecret()) as PosAuthTokenPayload
+
+    if (decoded.type && decoded.type !== "refresh") {
+      throw new Error("Invalid refresh token")
+    }
+
+    return decoded
+  } catch (error) {
+    throw new Error("Invalid or expired refresh token")
+  }
+}
+
 export function authenticatePosJwt(
   req: PosAuthenticatedRequest,
   res: MedusaResponse
 ) {
-  const authHeader = req.headers.authorization
+  const authHeader = req.headers?.authorization
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     res.status(401).json({

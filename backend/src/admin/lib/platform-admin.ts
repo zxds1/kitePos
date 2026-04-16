@@ -72,6 +72,60 @@ export type CatalogConfigResponse = {
   }
 }
 
+export type ObservabilityAlert = {
+  id: string
+  severity: "info" | "warning" | "critical"
+  source: "ai_operation" | "audit_log"
+  title: string
+  message: string
+  occurred_at: string
+  shop_id?: string | null
+  metadata?: Record<string, unknown> | null
+}
+
+export type ObservabilityResponse = {
+  summary: {
+    ai_operations_24h: number
+    ai_failures_24h: number
+    ai_slow_ops_24h: number
+    avg_latency_ms_24h: number
+    total_tokens_24h: number
+    total_cost_kes_24h: number
+    audit_events_24h: number
+    alert_count: number
+    system_health: {
+      api_status: string
+      database_status: string
+      checked_at: string
+    }
+  }
+  alerts: ObservabilityAlert[]
+  recent_ai_operations: Array<{
+    id: string
+    shop_id: string
+    operation_type: string
+    provider: string
+    model: string
+    total_tokens: number
+    cost_kes: number
+    latency_ms: number
+    success: boolean
+    error_message?: string | null
+    occurred_at: string
+  }>
+  recent_audit_events: Array<{
+    id: string
+    shop_id: string
+    actor_user_id?: string | null
+    actor_role?: string | null
+    action: string
+    entity_type: string
+    entity_id?: string | null
+    location_id?: string | null
+    created_at: string
+  }>
+}
+
 export async function adminRequest<T>(
   path: string,
   init?: RequestInit

@@ -11,6 +11,7 @@ type RouteInput = {
   shopId: string
   shopName?: string
   intent?: string | null
+  model?: string
 }
 
 type UploadInput = {
@@ -87,6 +88,7 @@ export class RAGRouterService {
       maxContextItems: Number(config.max_context_items ?? 5),
       similarityThreshold: Number(config.similarity_threshold ?? 0.7),
       operationType: "rag_query",
+      model: input.model?.trim() || undefined,
     })
 
     return {
@@ -151,11 +153,33 @@ export class RAGRouterService {
     contentText: string
     contentMetadata?: Record<string, unknown> | null
   }) {
-    return this.pgvectorService.embedEntity(input)
+    try {
+      return await this.pgvectorService.embedEntity(input)
+    } catch (error) {
+      const logger = this.scope.resolve("logger") as
+        | { warn?: (message: string) => void; error?: (message: string) => void }
+        | undefined
+      const message = error instanceof Error ? error.message : String(error)
+
+      logger?.warn?.(
+        `RAG embedding skipped for ${input.entityType}:${input.entityId} in shop ${input.shopId} - ${message}`
+      )
+    }
   }
 
   async deleteEmbeddings(entityType: string, entityId: string, shopId: string) {
-    return this.pgvectorService.deleteEmbeddings(entityType, entityId, shopId)
+    try {
+      return await this.pgvectorService.deleteEmbeddings(entityType, entityId, shopId)
+    } catch (error) {
+      const logger = this.scope.resolve("logger") as
+        | { warn?: (message: string) => void; error?: (message: string) => void }
+        | undefined
+      const message = error instanceof Error ? error.message : String(error)
+
+      logger?.warn?.(
+        `RAG embedding delete skipped for ${entityType}:${entityId} in shop ${shopId} - ${message}`
+      )
+    }
   }
 
   private classifyIntent(query: string) {
