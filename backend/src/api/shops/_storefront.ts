@@ -67,15 +67,30 @@ export async function resolveStorefront(
 export function renderStorefrontHtml(payload: StorefrontPayload) {
   const shopName = text(payload.shop.shop_name, "Trace Shop")
   const brandName = "Trace"
-  const heroTitle = text(
-    getMap(payload.store.storefront_content).hero_title,
-    `${shopName} online`
-  )
+  const storeContent = getMap(payload.store.storefront_content)
+  const themeConfig = getMap(payload.store.theme_config)
+  const siteBrief = getMap(storeContent.site_brief)
+  const heroTitle = text(storeContent.hero_title, `${shopName} online`)
   const heroSubtitle = text(
-    getMap(payload.store.storefront_content).hero_subtitle,
+    storeContent.hero_subtitle,
     "Browse live stock, build an order, and pay via M-Pesa."
   )
-  const accent = text(getMap(payload.store.theme_config).accent_color, "#195E86")
+  const accent = text(themeConfig.accent_color, "#195E86")
+  const colorDescription = text(themeConfig.color_description, "calm retail colors")
+  const visualStyle = text(storeContent.visual_style, "clean retail editorial")
+  const layoutNotes = text(
+    storeContent.layout_notes,
+    "hero, featured catalog, trust details, and contact footer"
+  )
+  const trustSignals = asStringArray(
+    storeContent.trust_signals,
+    ["business contact", "secure checkout", "returns guidance"]
+  )
+  const securityNotes = asStringArray(
+    storeContent.security_notes,
+    ["HTTPS-only links", "no custom scripts", "plain-language policies"]
+  )
+  const ctaStyle = text(storeContent.cta_style, "Order on WhatsApp")
   const whatsappNumber = digitsOnly(
     payload.shop.mpesa_phone ?? payload.shop.owner_phone ?? ""
   )
@@ -93,8 +108,9 @@ export function renderStorefrontHtml(payload: StorefrontPayload) {
       const price = Number(product.selling_units[0]?.["price"] ?? 0)
       const category = escapeHtml(product.category ?? "General")
       const name = escapeHtml(product.name)
-      const image = product.image_url
-        ? `<img src="${escapeHtml(product.image_url)}" alt="${name}" class="product-image" />`
+      const safeImageUrl = safeHttpsUrl(product.image_url)
+      const image = safeImageUrl
+        ? `<img src="${escapeHtml(safeImageUrl)}" alt="${name}" class="product-image" />`
         : `<div class="product-image product-image--empty">${name.slice(0, 1)}</div>`
       const stockLabel =
         product.stock_remaining > 0
@@ -148,6 +164,16 @@ export function renderStorefrontHtml(payload: StorefrontPayload) {
     .eyebrow { display: inline-flex; padding: 8px 12px; border-radius: 999px; background: rgba(255,255,255,0.14); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
     h1 { margin: 14px 0 12px; font-size: clamp(32px, 5vw, 56px); line-height: 1.02; }
     .hero p { margin: 0; font-size: 17px; line-height: 1.6; max-width: 56ch; color: rgba(255,255,255,0.86); }
+    .hero-badges { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+    .hero-badges span {
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.14);
+      border: 1px solid rgba(255,255,255,0.18);
+      color: rgba(255,255,255,0.94);
+      font-size: 12px;
+      font-weight: 700;
+    }
     .hero-card, .section, .cart { background: var(--surface); border: 1px solid var(--line); border-radius: 24px; }
     .hero-card { padding: 20px; color: var(--text); }
     .hero-card h2 { margin: 0 0 14px; font-size: 18px; }
@@ -198,13 +224,42 @@ export function renderStorefrontHtml(payload: StorefrontPayload) {
         <span class="eyebrow">Powered by ${brandName}</span>
         <h1>${escapeHtml(heroTitle)}</h1>
         <p>${escapeHtml(heroSubtitle)}</p>
+        <div class="hero-badges">
+          <span>${escapeHtml(colorDescription)}</span>
+          <span>${escapeHtml(visualStyle)}</span>
+          <span>${escapeHtml(ctaStyle)}</span>
+        </div>
       </div>
       <aside class="hero-card">
         <h2>Order and pay</h2>
         <p>Build your cart, then send the order directly to ${escapeHtml(shopName)} via WhatsApp.</p>
         <p><strong>M-Pesa pay point:</strong> ${escapeHtml(paymentLabel)}</p>
         <p><strong>Payee name:</strong> ${escapeHtml(mpesaDisplay)}</p>
+        <p><strong>Security:</strong> ${escapeHtml(securityNotes.join(" • "))}</p>
       </aside>
+    </section>
+
+    <section class="section">
+      <div class="meta-grid">
+        <div class="meta-card">
+          <h4>Brief</h4>
+          <p>${escapeHtml(text(siteBrief.audience, "Local shoppers"))}</p>
+          <p>${escapeHtml(text(siteBrief.tone, layoutNotes))}</p>
+        </div>
+        <div class="meta-card">
+          <h4>Visual direction</h4>
+          <p>${escapeHtml(colorDescription)}</p>
+          <p>${escapeHtml(visualStyle)}</p>
+        </div>
+        <div class="meta-card">
+          <h4>Trust signals</h4>
+          <p>${escapeHtml(trustSignals.join(" • "))}</p>
+        </div>
+        <div class="meta-card">
+          <h4>Security by default</h4>
+          <p>${escapeHtml(securityNotes.join(" • "))}</p>
+        </div>
+      </div>
     </section>
 
     <section class="section">
@@ -226,7 +281,7 @@ export function renderStorefrontHtml(payload: StorefrontPayload) {
           </div>
           ${
             whatsappNumber
-              ? `<a id="checkout-link" class="cta" href="#" target="_blank" rel="noreferrer">Checkout on WhatsApp</a>`
+              ? `<a id="checkout-link" class="cta" href="#" target="_blank" rel="noopener noreferrer">Checkout on WhatsApp</a>`
               : `<button class="cta" disabled>No WhatsApp number configured</button>`
           }
           <button id="copy-summary" class="secondary" type="button">Copy order summary</button>
@@ -331,6 +386,31 @@ export function renderStorefrontHtml(payload: StorefrontPayload) {
 </html>`
 }
 
+export function setStorefrontSecurityHeaders(res: {
+  setHeader(name: string, value: string): unknown
+}) {
+  res.setHeader(
+    "Content-Security-Policy",
+    [
+      "default-src 'self'",
+      "base-uri 'self'",
+      "frame-ancestors 'none'",
+      "object-src 'none'",
+      "script-src 'self' 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' https: data:",
+      "font-src 'self' https: data:",
+      "connect-src 'self' https:",
+      "form-action https://wa.me https://api.whatsapp.com",
+      "upgrade-insecure-requests",
+    ].join("; ")
+  )
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin")
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()")
+  res.setHeader("X-Content-Type-Options", "nosniff")
+  res.setHeader("X-Frame-Options", "DENY")
+}
+
 export function wantsJson(req: MedusaRequest) {
   const format = typeof req.query.format === "string" ? req.query.format : ""
   const accept = String(req.headers.accept ?? "")
@@ -389,4 +469,30 @@ function escapeHtml(value: string) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;")
+}
+
+function safeHttpsUrl(value: unknown) {
+  const raw = String(value ?? "").trim()
+  if (!raw) {
+    return null
+  }
+
+  try {
+    const parsed = new URL(raw)
+    return parsed.protocol === "https:" ? parsed.toString() : null
+  } catch {
+    return null
+  }
+}
+
+function asStringArray(value: unknown, fallback: string[]) {
+  if (!Array.isArray(value)) {
+    return fallback
+  }
+
+  const strings = value
+    .map((item) => String(item).trim())
+    .filter((item) => item.length > 0)
+
+  return strings.length > 0 ? strings.slice(0, 5) : fallback
 }

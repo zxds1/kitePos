@@ -606,7 +606,7 @@ export class ShopAssistantService {
   }): Promise<AssistantResponse> {
     const fallbackPayload = {
       theme_name: "smart-modern",
-      color_seed: "#195E86",
+      color_description: "calm blue with clean white surfaces",
       tagline_hint: input.shopName,
       hero_title: `${input.shopName} online`,
       hero_subtitle: "Order products online with real-time stock visibility.",
@@ -616,6 +616,17 @@ export class ShopAssistantService {
       section_keys: ["featured_products", "mpesa_checkout", "chat_support"],
       store_slug: input.shopName,
       use_ai_copy: true,
+      visual_style: "clean retail editorial",
+      layout_notes: "simple hero, featured catalog, trust section, and contact footer",
+      trust_signals: ["business contact", "secure checkout", "returns guidance"],
+      security_notes: ["HTTPS-only links", "no custom scripts", "plain-language policies"],
+      seo_keywords: ["online shop", "M-Pesa checkout", "local delivery"],
+      cta_style: "order on WhatsApp",
+      palette_notes: "blue and white with a calm local retail feel",
+      site_brief: {
+        audience: "local shoppers",
+        tone: "clear and practical",
+      },
     }
 
     const extracted = await this.aiService.generateJson<Record<string, unknown>>(
@@ -629,7 +640,7 @@ export class ShopAssistantService {
           "ai/shop-assistant-store-draft.md",
           [
             "Extract a storefront draft for the shop owner.",
-            "Return JSON only with keys theme_name, color_seed, tagline_hint, hero_title, hero_subtitle, seo_description, sharing_message, selected_product_ids, section_keys, store_slug, use_ai_copy.",
+            "Return JSON only with keys theme_name, color_description, tagline_hint, hero_title, hero_subtitle, seo_description, sharing_message, selected_product_ids, section_keys, store_slug, use_ai_copy, site_brief, trust_signals, security_notes, visual_style, layout_notes, seo_keywords, cta_style, palette_notes, accent_color.",
           ].join(" ")
         ),
         prompt: renderPrompt(
@@ -657,6 +668,15 @@ export class ShopAssistantService {
       section_keys: Array.isArray(extracted.section_keys)
         ? extracted.section_keys.map((item) => String(item))
         : fallbackPayload.section_keys,
+      trust_signals: Array.isArray(extracted.trust_signals)
+        ? extracted.trust_signals.map((item) => String(item))
+        : fallbackPayload.trust_signals,
+      security_notes: Array.isArray(extracted.security_notes)
+        ? extracted.security_notes.map((item) => String(item))
+        : fallbackPayload.security_notes,
+      seo_keywords: Array.isArray(extracted.seo_keywords)
+        ? extracted.seo_keywords.map((item) => String(item))
+        : fallbackPayload.seo_keywords,
     }
 
     const planned = await this.planToolRequest({
@@ -691,7 +711,7 @@ export class ShopAssistantService {
   }) {
     const fallbackPayload = {
       theme_name: "smart-modern",
-      color_seed: "#195E86",
+      color_description: "calm blue with clean white surfaces",
       tagline_hint: input.shopName,
       hero_title: `${input.shopName} online`,
       hero_subtitle: "Order products online with real-time stock visibility.",
@@ -701,6 +721,17 @@ export class ShopAssistantService {
       section_keys: ["featured_products", "mpesa_checkout", "chat_support"],
       store_slug: input.shopName,
       use_ai_copy: true,
+      visual_style: "clean retail editorial",
+      layout_notes: "simple hero, featured catalog, trust section, and contact footer",
+      trust_signals: ["business contact", "secure checkout", "returns guidance"],
+      security_notes: ["HTTPS-only links", "no custom scripts", "plain-language policies"],
+      seo_keywords: ["online shop", "M-Pesa checkout", "local delivery"],
+      cta_style: "order on WhatsApp",
+      palette_notes: "blue and white with a calm local retail feel",
+      site_brief: {
+        audience: "local shoppers",
+        tone: "clear and practical",
+      },
     }
 
     const extracted = await this.aiService.generateJson<Record<string, unknown>>(
@@ -714,7 +745,7 @@ export class ShopAssistantService {
           "ai/shop-assistant-store-draft.md",
           [
             "Extract storefront copy and structure for the shop owner.",
-            "Return JSON only with keys theme_name, color_seed, tagline_hint, hero_title, hero_subtitle, seo_description, sharing_message, selected_product_ids, section_keys, store_slug, use_ai_copy.",
+            "Return JSON only with keys theme_name, color_description, tagline_hint, hero_title, hero_subtitle, seo_description, sharing_message, selected_product_ids, section_keys, store_slug, use_ai_copy, site_brief, trust_signals, security_notes, visual_style, layout_notes, seo_keywords, cta_style, palette_notes, accent_color.",
           ].join(" ")
         ),
         prompt: renderPrompt(
@@ -741,6 +772,15 @@ export class ShopAssistantService {
       section_keys: Array.isArray(extracted.section_keys)
         ? extracted.section_keys.map((item) => String(item))
         : fallbackPayload.section_keys,
+      trust_signals: Array.isArray(extracted.trust_signals)
+        ? extracted.trust_signals.map((item) => String(item))
+        : fallbackPayload.trust_signals,
+      security_notes: Array.isArray(extracted.security_notes)
+        ? extracted.security_notes.map((item) => String(item))
+        : fallbackPayload.security_notes,
+      seo_keywords: Array.isArray(extracted.seo_keywords)
+        ? extracted.seo_keywords.map((item) => String(item))
+        : fallbackPayload.seo_keywords,
     }
   }
 

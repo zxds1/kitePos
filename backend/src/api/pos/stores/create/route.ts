@@ -15,6 +15,7 @@ import { ShopAssistantService } from "../../../../services/shop-assistant.servic
 
 const CreateStoreSchema = z.object({
   theme_name: z.string().trim().min(1).default("smart-modern"),
+  color_description: z.string().trim().min(1).optional(),
   color_seed: z.string().trim().min(1).optional(),
   tagline_hint: z.string().trim().min(1).optional(),
   hero_title: z.string().trim().min(1).optional(),
@@ -25,6 +26,7 @@ const CreateStoreSchema = z.object({
   section_keys: z.array(z.string().trim().min(1)).optional(),
   store_slug: z.string().trim().min(1).optional(),
   use_ai_copy: z.boolean().optional().default(true),
+  site_brief: z.record(z.any()).optional(),
 })
 
 function slugify(value: string) {
@@ -44,6 +46,29 @@ function buildStoreUrl(slug: string) {
   }
 
   return `${baseUrl.replace(/\/+$/, "")}/${slug}`
+}
+
+function deriveAccentColor(seed: string) {
+  const palette = [
+    "#195E86",
+    "#14532D",
+    "#7C2D12",
+    "#5B21B6",
+    "#0F766E",
+    "#A16207",
+    "#1E293B",
+  ]
+
+  const normalized = seed.trim().toLowerCase()
+  if (!normalized) {
+    return palette[0]
+  }
+
+  const hash = normalized.split("").reduce((sum, char) => {
+    return (sum + char.charCodeAt(0)) % 997
+  }, 0)
+
+  return palette[hash % palette.length]
 }
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
@@ -96,21 +121,48 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   )
   const publicUrl = buildStoreUrl(slug)
   const assistantService = new ShopAssistantService(req)
+  const siteBrief = parsed.data.site_brief ?? {}
+  const colorDescription =
+    parsed.data.color_description ??
+    parsed.data.color_seed ??
+    String((siteBrief as Record<string, unknown>).color_description ?? "")
 
   const generated = parsed.data.use_ai_copy
       ? await assistantService.generateStoreDraft({
         shopId: auth.shop_id,
         shopName: String(shop.shop_name ?? "Store"),
-        query: `Create a storefront for ${String(shop.shop_name ?? "Store")}. Theme ${parsed.data.theme_name}. Optional color seed ${parsed.data.color_seed ?? "none"}. Optional tagline hint ${parsed.data.tagline_hint ?? "none"}. Products: ${JSON.stringify(featuredProducts)}.`,
+        query: [
+          `Create a secure storefront for ${String(shop.shop_name ?? "Store")}.`,
+          `Theme name: ${parsed.data.theme_name}.`,
+          `Color description: ${colorDescription || "none"}.`,
+          `Tagline hint: ${parsed.data.tagline_hint ?? "none"}.`,
+          `Site brief: ${JSON.stringify(siteBrief)}.`,
+          `Products: ${JSON.stringify(featuredProducts)}.`,
+        ].join(" "),
         model: undefined,
       })
     : {}
+  const generatedRecord = generated as Record<string, unknown>
 
   const sectionKeys = parsed.data.section_keys?.length
     ? parsed.data.section_keys
-    : (generated as Record<string, unknown>).section_keys instanceof Array
-      ? (generated as Record<string, unknown>).section_keys as string[]
-      : ["featured_products", "mpesa_checkout", "chat_support"]
+    : generatedRecord.section_keys instanceof Array
+    ? generatedRecord.section_keys as string[]
+    : ["featured_products", "mpesa_checkout", "chat_support"]
+
+  const accentColor =
+    String(generatedRecord.accent_color ?? "").trim() ||
+    deriveAccentColor(
+      String(
+        generatedRecord.color_description ??
+          colorDescription ??
+          parsed.data.theme_name
+      )
+    )
+
+  const securityNotes = Array.isArray(generatedRecord.security_notes)
+    ? generatedRecord.security_notes
+    : []
 
   const [existing] = await storeService.listOnlineStores(
     { shop_id: auth.shop_id },
@@ -119,7 +171,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
   const payload = {
     id:
-      (existing as Record<string, unknown> | undefined)?.id?.toString() ??
+    (existing as Record<string, unknown> | undefined)?.id?.toString() ??
       `ost_${randomUUID().replace(/-/g, "").slice(0, 24)}`,
     shop_id: auth.shop_id,
     slug,
@@ -128,37 +180,62 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     status: "published",
     theme_name: parsed.data.theme_name,
     theme_config: {
-      accent_color:
-        (generated as Record<string, unknown>).color_seed ??
-        parsed.data.color_seed ??
-        "#195E86",
+      accent_color: accentColor,
+      color_description:
+        colorDescription ||
+        String(generatedRecord.color_description ?? ""),
+      palette_notes: generatedRecord.palette_notes ?? null,
       theme_name: parsed.data.theme_name,
+      secure_site: true,
     },
     storefront_content: {
       hero_title:
         parsed.data.hero_title ??
-        (generated as Record<string, unknown>).hero_title ??
+        generatedRecord.hero_title ??
         `${shop.shop_name} online`,
       hero_subtitle:
         parsed.data.hero_subtitle ??
-        (generated as Record<string, unknown>).hero_subtitle ??
+        generatedRecord.hero_subtitle ??
         "Order products online with real-time stock visibility.",
       featured_products: featuredProducts,
       sections: sectionKeys,
+      site_brief: siteBrief,
+      visual_style:
+        generatedRecord.visual_style ??
+        (siteBrief as Record<string, unknown>).visual_style ??
+        null,
+      layout_notes:
+        generatedRecord.layout_notes ??
+        (siteBrief as Record<string, unknown>).layout_notes ??
+        null,
+      trust_signals:
+        generatedRecord.trust_signals ??
+        (siteBrief as Record<string, unknown>).trust_signals ??
+        [],
+      security_notes: securityNotes,
+      cta_style:
+        generatedRecord.cta_style ??
+        (siteBrief as Record<string, unknown>).cta_style ??
+        null,
     },
     seo_metadata: {
       title: `${shop.shop_name} | Trace`,
       description:
         parsed.data.seo_description ??
-        (generated as Record<string, unknown>).seo_description ??
+        generatedRecord.seo_description ??
         `Shop ${shop.shop_name} online with M-Pesa checkout.`,
+      keywords:
+        generatedRecord.seo_keywords ??
+        (siteBrief as Record<string, unknown>).seo_keywords ??
+        [],
     },
     sharing_metadata: {
       whatsapp_text:
         parsed.data.sharing_message ??
-        (generated as Record<string, unknown>).sharing_message ??
+        generatedRecord.sharing_message ??
         `Browse ${shop.shop_name} online: ${publicUrl}`,
       sms_text: `${shop.shop_name} is now online. Visit ${publicUrl}`,
+      share_title: `${shop.shop_name} online storefront`,
     },
     generation_error: null,
     last_generated_at: new Date(),
