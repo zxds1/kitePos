@@ -14,9 +14,9 @@ const HybridMatchSchema = z.object({
     .string()
     .min(1)
     .max(10_000_000, "Image must be 10MB or smaller before encoding"),
-  mode: z.enum(["receipt", "product"], {
+  mode: z.enum(["receipt", "product", "backfill"], {
     errorMap: () => ({
-      message: "mode must be 'receipt' or 'product'",
+      message: "mode must be 'receipt', 'product', or 'backfill'",
     }),
   }),
   file_name: z.string().min(1).max(255).optional().nullable(),
@@ -76,8 +76,13 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     return
   }
 
-  const { image_base64, mode, min_text_similarity, min_combined_similarity } =
-    parsed.data
+  const {
+    image_base64,
+    mode,
+    file_name,
+    min_text_similarity,
+    min_combined_similarity,
+  } = parsed.data
   const logger: any = req.scope.resolve("logger")
 
   try {
@@ -97,7 +102,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     const extractionService = new AIExtractionService(req.scope)
     const extraction = await extractionService.extractSalesFromImage(
       sanitizedBase64,
-      mode
+      mode,
+      { fileName: file_name }
     )
 
     if (extraction.items.length === 0) {
@@ -261,7 +267,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   } catch (error: any) {
     logger.error(`Hybrid matching failed for shop ${auth.shop_id}: ${error.message}`)
 
-    res.status(500).json({
+    const statusCode = error.message?.includes("Unsupported backfill file type")
+      ? 415
+      : 500
+    res.status(statusCode).json({
       success: false,
       message: error.message || "Failed to perform hybrid matching",
       error: process.env.NODE_ENV === "development" ? error.message : undefined,

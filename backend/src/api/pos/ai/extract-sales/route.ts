@@ -36,6 +36,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   }
 
   const { image_base64, mode } = parsed.data
+  const fileName = parsed.data.file_name
   const logger: any = req.scope.resolve("logger")
 
   try {
@@ -62,7 +63,11 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
     // Create extraction service and process image
     const extractionService = new AIExtractionService(req.scope)
-    const result = await extractionService.extractSalesFromImage(sanitizedBase64, mode)
+    const result = await extractionService.extractSalesFromImage(
+      sanitizedBase64,
+      mode,
+      { fileName }
+    )
 
     // Return extraction result
     res.status(200).json({
@@ -89,7 +94,11 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       `Sales extraction failed for shop ${auth.shop_id}: ${error.message}`
     )
 
-    const statusCode = error.message?.includes("10MB") ? 413 : 500
+    const statusCode = error.message?.includes("10MB")
+      ? 413
+      : error.message?.includes("Unsupported backfill file type")
+        ? 415
+        : 500
     res.status(statusCode).json({
       success: false,
       message: error.message || "Failed to extract sales data from image",

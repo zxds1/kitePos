@@ -2,6 +2,10 @@ import type { MedusaContainer } from "@medusajs/framework"
 
 type ExtractionMode = "receipt" | "product" | "backfill"
 
+type SalesExtractionOptions = {
+  fileName?: string | null
+}
+
 interface ExtractedItem {
   name: string
   quantity: number
@@ -58,7 +62,8 @@ export class AIExtractionService {
 
   async extractSalesFromImage(
     imageBase64: string,
-    mode: ExtractionMode
+    mode: ExtractionMode,
+    options: SalesExtractionOptions = {}
   ): Promise<SalesExtractionResult> {
     const logger = this.container.resolve("logger")
 
@@ -71,7 +76,11 @@ export class AIExtractionService {
             : PRODUCT_PHOTO_EXTRACTION_PROMPT
 
       // Use LiteeLLM client to call vision-capable models
-      const response = await this.callLLMVision(imageBase64, systemPrompt)
+      const response = await this.callLLMVision(
+        imageBase64,
+        systemPrompt,
+        options.fileName
+      )
 
       // Parse the response
       let items: ExtractedItem[] = []
@@ -130,8 +139,14 @@ export class AIExtractionService {
     }
   }
 
-  private async callLLMVision(imageBase64: string, systemPrompt: string): Promise<string> {
+  private async callLLMVision(
+    imageBase64: string,
+    systemPrompt: string,
+    fileName?: string | null
+  ): Promise<string> {
     const logger = this.container.resolve("logger")
+
+    const mimeType = this.inferImageMimeType(fileName)
 
     // Check if we have a LiteeLLM client or need to call via HTTP
     // For now, we'll use fetch to call a local/remote LiteeLLM server
@@ -163,7 +178,7 @@ export class AIExtractionService {
                 {
                   type: "image_url",
                   image_url: {
-                    url: `data:image/jpeg;base64,${imageBase64}`,
+                    url: `data:${mimeType};base64,${imageBase64}`,
                   },
                 },
                 {
@@ -202,6 +217,46 @@ export class AIExtractionService {
     } catch (error) {
       logger.error(`LiteeLLM vision call failed: ${error}`)
       throw error
+    }
+  }
+
+  private inferImageMimeType(fileName?: string | null): string {
+    const normalized = fileName?.trim().toLowerCase()
+    if (!normalized) {
+      return "image/jpeg"
+    }
+
+    const extension = normalized.includes(".")
+      ? normalized.slice(normalized.lastIndexOf(".") + 1)
+      : ""
+
+    switch (extension) {
+      case "jpg":
+      case "jpeg":
+        return "image/jpeg"
+      case "png":
+        return "image/png"
+      case "webp":
+        return "image/webp"
+      case "gif":
+        return "image/gif"
+      case "bmp":
+        return "image/bmp"
+      case "heic":
+        return "image/heic"
+      case "heif":
+        return "image/heif"
+      case "tif":
+      case "tiff":
+        return "image/tiff"
+      case "avif":
+        return "image/avif"
+      default:
+        throw new Error(
+          fileName
+            ? `Unsupported backfill file type: ${extension || "unknown"}`
+            : "Unable to determine image type"
+        )
     }
   }
 
