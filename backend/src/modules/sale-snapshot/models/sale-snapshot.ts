@@ -31,6 +31,8 @@ const SaleSnapshot = model.define("sale_snapshot", {
 
   // AI Extraction Metadata (for photo-based sales)
   extraction_source: model.text().nullable(), // "receipt" | "product" | null
+  source_image_url: model.text().nullable(),
+  source_file_name: model.text().nullable(),
   extraction_confidence: model.bigNumber().nullable(), // 0-1 confidence score
   extraction_raw: model.text().nullable(), // Raw AI response text for audit
   extraction_timestamp: model.dateTime().nullable(), // When extraction occurred

@@ -16,6 +16,12 @@ export const AdminCreateSaleSnapshot = z.object({
   mpesa_receipt_number: z.string().optional(),
   mpesa_customer_phone: z.string().optional(),
   amount_paid: z.number().optional(),
+  extraction_source: z.string().optional(),
+  source_image_url: z.string().optional(),
+  source_file_name: z.string().optional(),
+  extraction_confidence: z.number().min(0).max(1).optional(),
+  extraction_raw: z.string().optional(),
+  extraction_timestamp: z.coerce.date().optional(),
   timestamp: z.coerce.date(),
 })
 

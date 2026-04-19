@@ -27,6 +27,12 @@ const BatchSaleItem = z.object({
   mpesa_receipt_number: z.string().min(1).optional(),
   mpesa_customer_phone: z.string().min(1).optional(),
   amount_paid: z.number().min(0).optional(),
+  extraction_source: z.string().min(1).optional(),
+  source_image_url: z.string().min(1).optional(),
+  source_file_name: z.string().min(1).optional(),
+  extraction_confidence: z.number().min(0).max(1).optional(),
+  extraction_raw: z.string().optional(),
+  extraction_timestamp: z.coerce.date().optional(),
   timestamp: z.coerce.date(),
 })
 
