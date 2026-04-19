@@ -65,7 +65,7 @@ describe("Sales Extraction Endpoint", () => {
       })
 
       // Zod validation would catch this
-      // Valid modes are: "receipt" | "product"
+      // Valid modes are: "receipt" | "product" | "backfill"
 
       expect(req.body).toBeDefined()
     })
@@ -206,7 +206,7 @@ describe("Sales Extraction Endpoint", () => {
       const expectedResponse = {
         success: true,
         message: expect.any(String),
-        supported_modes: ["receipt", "product"],
+        supported_modes: ["receipt", "product", "backfill"],
         max_image_size_mb: 7,
         shop_id: expect.any(String),
       }
@@ -217,10 +217,11 @@ describe("Sales Extraction Endpoint", () => {
     it("should list supported extraction modes", async () => {
       req = createMockRequest()
 
-      const modes = ["receipt", "product"]
-      expect(modes).toHaveLength(2)
+      const modes = ["receipt", "product", "backfill"]
+      expect(modes).toHaveLength(3)
       expect(modes).toContain("receipt")
       expect(modes).toContain("product")
+      expect(modes).toContain("backfill")
     })
 
     it("should indicate max image size", async () => {

@@ -11,9 +11,9 @@ const ExtractionSchema = z.object({
     .string()
     .min(1)
     .max(10_000_000, "Image must be 10MB or smaller before encoding"),
-  mode: z.enum(["receipt", "product"], {
+  mode: z.enum(["receipt", "product", "backfill"], {
     errorMap: () => ({
-      message: "mode must be 'receipt' or 'product'",
+      message: "mode must be 'receipt', 'product', or 'backfill'",
     }),
   }),
   file_name: z.string().min(1).max(255).optional().nullable(),
@@ -107,7 +107,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   res.status(200).json({
     success: true,
     message: "Sales image extraction endpoint ready",
-    supported_modes: ["receipt", "product"],
+    supported_modes: ["receipt", "product", "backfill"],
     max_image_size_mb: 7,
     shop_id: auth.shop_id,
   })

@@ -18,7 +18,6 @@ import { SHOP_MODULE } from "../../../modules/shop"
 import type ShopModuleService from "../../../modules/shop/service"
 import {
   canManageStaff,
-  listActiveShopUsers,
   normalizeAssignedLocationIds,
   normalizeAssignedTerminalIds,
   shapeShopUser,
@@ -51,8 +50,17 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     return
   }
 
-  const [users, locations] = await Promise.all([
-    listActiveShopUsers(req.scope, auth.shop_id),
+  const shopUserService: ShopUserModuleService = req.scope.resolve(
+    SHOP_USER_MODULE
+  )
+  const [[users], locations] = await Promise.all([
+    shopUserService.listAndCountShopUsers(
+      { shop_id: auth.shop_id },
+      {
+        take: 200,
+        order: { created_at: "ASC" },
+      }
+    ),
     listShopLocations(req.scope, auth.shop_id),
   ])
 
@@ -136,7 +144,16 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     return
   }
 
-  const users = await listActiveShopUsers(req.scope, auth.shop_id)
+  const shopUserService: ShopUserModuleService = req.scope.resolve(
+    SHOP_USER_MODULE
+  )
+  const [users] = await shopUserService.listAndCountShopUsers(
+    { shop_id: auth.shop_id },
+    {
+      take: 200,
+      order: { created_at: "ASC" },
+    }
+  )
   const phoneHash = hashPhone(normalizedPhone)
   const shopService: ShopModuleService = req.scope.resolve(SHOP_MODULE)
   const [shopMatches] = await shopService.listAndCountShops(
@@ -158,7 +175,6 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     .resolve<ShopUserModuleService>(SHOP_USER_MODULE)
     .listShopUsers({
       phone_hash: phoneHash,
-      is_active: true,
     })
   const crossShopUser = existingGlobalUser.find(
     (user) => (user as Record<string, unknown>).shop_id !== auth.shop_id

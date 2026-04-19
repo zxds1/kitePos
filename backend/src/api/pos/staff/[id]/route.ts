@@ -6,7 +6,6 @@ import {
 } from "../../../auth/_utils/jwt"
 import {
   canManageStaff,
-  listActiveShopUsers,
   normalizeAssignedLocationIds,
   normalizeAssignedTerminalIds,
   shapeShopUser,
@@ -62,7 +61,14 @@ export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
     return
   }
 
-  const users = await listActiveShopUsers(req.scope, auth.shop_id)
+  const service: ShopUserModuleService = req.scope.resolve(SHOP_USER_MODULE)
+  const [users] = await service.listAndCountShopUsers(
+    { shop_id: auth.shop_id },
+    {
+      take: 200,
+      order: { created_at: "ASC" },
+    }
+  )
   const existing = users.find((user) => user.id === staffUserId)
   if (!existing) {
     res.status(404).json({
@@ -118,7 +124,6 @@ export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
     return
   }
 
-  const service: ShopUserModuleService = req.scope.resolve(SHOP_USER_MODULE)
   const recoveryCode =
     parsed.data.regenerate_recovery_code == true ||
     ((parsed.data.pin?.length ?? 0) > 0)

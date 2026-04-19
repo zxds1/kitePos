@@ -1,6 +1,6 @@
 import type { MedusaContainer } from "@medusajs/framework"
 
-type ExtractionMode = "receipt" | "product"
+type ExtractionMode = "receipt" | "product" | "backfill"
 
 interface ExtractedItem {
   name: string
@@ -39,6 +39,16 @@ Look at the image and extract the visible items with their estimated quantities.
 For items visible multiple times, sum the quantities. Make reasonable estimates for visibility.
 Return ONLY valid JSON, no other text.`
 
+const BACKFILL_EXTRACTION_PROMPT = `You are an expert at reading handwritten or printed sales backfill records.
+Extract the sold items and their quantities as faithfully as possible from the page, note, or book image. Return ONLY a JSON array:
+[
+  {"name": "Product Name", "quantity": 2},
+  {"name": "Another Item", "quantity": 1}
+]
+
+If the record is unclear, preserve the most likely item names and quantities without inventing extra items.
+Return ONLY valid JSON, no other text.`
+
 export class AIExtractionService {
   private container: MedusaContainer
 
@@ -56,7 +66,9 @@ export class AIExtractionService {
       const systemPrompt =
         mode === "receipt"
           ? RECEIPT_EXTRACTION_PROMPT
-          : PRODUCT_PHOTO_EXTRACTION_PROMPT
+          : mode === "backfill"
+            ? BACKFILL_EXTRACTION_PROMPT
+            : PRODUCT_PHOTO_EXTRACTION_PROMPT
 
       // Use LiteeLLM client to call vision-capable models
       const response = await this.callLLMVision(imageBase64, systemPrompt)
