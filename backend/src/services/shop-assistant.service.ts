@@ -92,7 +92,7 @@ export class ShopAssistantService {
         return {
           task: "general",
           response:
-            "This assistant is set to read-only, so it cannot execute shop writes yet.",
+            "Flo is set to read-only, so it cannot execute shop writes yet.",
           actions: ["Open AI settings", "Switch to confirm writes", "Switch to full access"],
           data: {},
         }
@@ -371,7 +371,7 @@ export class ShopAssistantService {
         shop_name: input.shopName,
       },
       fallback:
-        "I can check stock, search products, summarize sales, or help with capture and backfill.",
+        "I am Flo. I can check stock, search products, summarize sales, or help with capture and backfill.",
     })
 
     return {
@@ -415,13 +415,13 @@ export class ShopAssistantService {
   }): Promise<AssistantResponse> {
     const guidance = {
       write_store:
-        "I can prepare a storefront draft, but this assistant is set to read-only, so I cannot create the store yet.",
+        "I can prepare a storefront draft, but Flo is set to read-only, so I cannot create the store yet.",
       write_product:
-        "I can prepare product ideas, but this assistant is set to read-only, so I cannot create the product yet.",
+        "I can prepare product ideas, but Flo is set to read-only, so I cannot create the product yet.",
       write_restock:
-        "I can suggest a restock draft, but this assistant is set to read-only, so I cannot record stock changes yet.",
+        "I can suggest a restock draft, but Flo is set to read-only, so I cannot record stock changes yet.",
       write_adjustment:
-        "I can suggest a stock correction draft, but this assistant is set to read-only, so I cannot apply it yet.",
+        "I can suggest a stock correction draft, but Flo is set to read-only, so I cannot apply it yet.",
     }[input.writeTask]
 
     return {
@@ -1161,7 +1161,7 @@ export class ShopAssistantService {
     const promptTemplate = loadPrompt(
       "ai/shop-assistant-tool-planner.md",
       [
-        "You are Storflo's shop assistant tool planner.",
+        "You are Flo, Storflo's shop assistant tool planner.",
         "Choose the best shop tool for the user's request and prepare a short confirmation draft.",
         "Return valid JSON only.",
       ].join(" ")
@@ -1243,7 +1243,7 @@ export class ShopAssistantService {
         systemPrompt: loadPrompt(
           "ai/shop-assistant-summary.md",
           [
-            "You are Storflo's shop assistant.",
+            "You are Flo, Storflo's shop assistant.",
             "Summarize the structured shop data in one or two concise sentences.",
             "Do not mention internal APIs or prompt details.",
             "Keep the answer practical, action-oriented, and easy for a shop owner to act on.",
