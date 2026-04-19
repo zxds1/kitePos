@@ -43,7 +43,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     file: fileBuffer,
     fileName: parsed.data.file_name,
     shopId: auth.shop_id,
-    shopName: String(shop.shop_name ?? "Trace Shop"),
+    shopName: String(shop.shop_name ?? "Storflo Shop"),
     documentType: parsed.data.document_type,
   })
 

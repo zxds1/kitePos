@@ -337,7 +337,7 @@ export class RAGPgvectorService {
       : "No shop-specific context was retrieved."
 
     return [
-      "Answer using the retrieved Trace shop context when relevant.",
+      "Answer using the retrieved Storflo shop context when relevant.",
       "Be explicit when context is missing.",
       "Keep the answer concise and practical for a Kenyan retail business.",
       "",

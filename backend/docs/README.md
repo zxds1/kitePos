@@ -1,6 +1,6 @@
 # Backend Documentation
 
-This directory contains the backend documentation for the UZApoint backend.
+This directory contains the backend documentation for the Storflo backend.
 
 ## Contents
 

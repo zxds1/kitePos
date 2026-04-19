@@ -27,14 +27,14 @@ describe("BillingService", () => {
     const result = await service.createCustomer({
       partnerId: "partner_1",
       email: "billing@example.com",
-      name: "Trace Partner",
+      name: "Storflo Partner",
     })
 
     expect(result).toEqual({
       provider: "stripe",
       customer_id: "cus_123",
       email: "billing@example.com",
-      name: "Trace Partner",
+      name: "Storflo Partner",
     })
 
     expect(global.fetch).toHaveBeenCalledWith(
@@ -47,7 +47,7 @@ describe("BillingService", () => {
     const [, init] = (global.fetch as jest.Mock).mock.calls[0]
     const body = init.body as URLSearchParams
     expect(body.get("email")).toBe("billing@example.com")
-    expect(body.get("name")).toBe("Trace Partner")
+    expect(body.get("name")).toBe("Storflo Partner")
     expect(body.get("metadata[partner_id]")).toBe("partner_1")
   })
 
@@ -139,7 +139,7 @@ describe("BillingService", () => {
       service.createCustomer({
         partnerId: "partner_1",
         email: "billing@example.com",
-        name: "Trace Partner",
+        name: "Storflo Partner",
       })
     ).rejects.toBeInstanceOf(BillingConfigurationError)
   })

@@ -276,7 +276,7 @@ export class AIService {
       loadPrompt(
         "ai/default-system-prompt.md",
         [
-          "You assist Kenyan retail and wholesale shops on Trace Commerce.",
+          "You assist Kenyan retail and wholesale shops on Storflo.",
           "Use a {{personality}} tone.",
           "{{language_instruction}}",
           "Keep answers concise, accurate, and practical.",

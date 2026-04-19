@@ -65,8 +65,8 @@ export async function resolveStorefront(
 }
 
 export function renderStorefrontHtml(payload: StorefrontPayload) {
-  const shopName = text(payload.shop.shop_name, "Trace Shop")
-  const brandName = "Trace"
+  const shopName = text(payload.shop.shop_name, "Storflo Shop")
+  const brandName = "Storflo"
   const storeContent = getMap(payload.store.storefront_content)
   const themeConfig = getMap(payload.store.theme_config)
   const siteBrief = getMap(storeContent.site_brief)

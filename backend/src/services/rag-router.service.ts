@@ -61,7 +61,7 @@ export class RAGRouterService {
         String(config.ragflow_knowledge_base_id ?? "").trim() ||
         (await ragflow.getOrCreateKnowledgeBase(
           input.shopId,
-          input.shopName ?? String((shop as Record<string, unknown> | undefined)?.shop_name ?? "Trace Shop")
+          input.shopName ?? String((shop as Record<string, unknown> | undefined)?.shop_name ?? "Storflo Shop")
         ))
       const result = await ragflow.query({
         query: input.query,
@@ -124,7 +124,7 @@ export class RAGRouterService {
       String(config.ragflow_knowledge_base_id ?? "").trim() ||
       (await ragflow.getOrCreateKnowledgeBase(
         input.shopId,
-        input.shopName ?? String((shop as Record<string, unknown> | undefined)?.shop_name ?? "Trace Shop")
+        input.shopName ?? String((shop as Record<string, unknown> | undefined)?.shop_name ?? "Storflo Shop")
       ))
     const result = await ragflow.uploadDocument({
       file: input.file,

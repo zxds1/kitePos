@@ -64,11 +64,11 @@ function devLocationId(phoneNumber: string) {
 }
 
 function defaultShopName(phoneNumber: string) {
-  return process.env.DEV_DEMO_SHOP_NAME || `Trace Demo ${phoneNumber.slice(-4)}`
+  return process.env.DEV_DEMO_SHOP_NAME || `Storflo Demo ${phoneNumber.slice(-4)}`
 }
 
 function defaultOwnerName() {
-  return process.env.DEV_DEMO_OWNER_NAME || "Trace Developer"
+  return process.env.DEV_DEMO_OWNER_NAME || "Storflo Developer"
 }
 
 function defaultRegion() {

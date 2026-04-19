@@ -41,7 +41,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const result = await new RAGRouterService(req.scope).routeQuery({
     query: parsed.data.query,
     shopId: auth.shop_id,
-    shopName: String(shop.shop_name ?? "Trace Shop"),
+    shopName: String(shop.shop_name ?? "Storflo Shop"),
     intent: parsed.data.intent ?? undefined,
     model: parsed.data.model ?? undefined,
   })

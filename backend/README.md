@@ -1,6 +1,6 @@
-# UZApoint Backend
+# Storflo Backend
 
-The backend is the operational core for the UZApoint stack. It serves:
+The backend is the operational core for the Storflo stack. It serves:
 
 - POS mobile clients in `uza_pos`
 - public storefront generation and publishing flows
@@ -8,7 +8,7 @@ The backend is the operational core for the UZApoint stack. It serves:
 - partner and export APIs
 - AI-assisted extraction and matching flows
 
-This repository is Medusa-based, but it is no longer a generic starter. The source of truth is the UZApoint domain model under `src/modules`, `src/api`, and `src/services`.
+This repository is Medusa-based, but it is no longer a generic starter. The source of truth is the Storflo domain model under `src/modules`, `src/api`, and `src/services`.
 
 ## Topology
 

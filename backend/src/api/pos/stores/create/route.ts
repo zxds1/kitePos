@@ -239,7 +239,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         null,
     },
     seo_metadata: {
-      title: `${shop.shop_name} | Trace`,
+      title: `${shop.shop_name} | Storflo`,
       description:
         parsed.data.seo_description ??
         generatedRecord.seo_description ??

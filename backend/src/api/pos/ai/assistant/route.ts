@@ -54,7 +54,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const assistant = new ShopAssistantService(req)
   const result = await assistant.run({
     shopId: auth.shop_id,
-    shopName: String(shop.shop_name ?? "Trace Shop"),
+    shopName: String(shop.shop_name ?? "Storflo Shop"),
     query: parsed.data.query,
     model: parsed.data.model ?? undefined,
     confirmedAction:

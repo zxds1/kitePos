@@ -610,7 +610,7 @@ export class ShopAssistantService {
       tagline_hint: input.shopName,
       hero_title: `${input.shopName} online`,
       hero_subtitle: "Order products online with real-time stock visibility.",
-      seo_description: `Buy from ${input.shopName} online on Trace.`,
+      seo_description: `Buy from ${input.shopName} online on Storflo.`,
       sharing_message: `Browse ${input.shopName} online.`,
       selected_product_ids: [] as string[],
       section_keys: ["featured_products", "mpesa_checkout", "chat_support"],
@@ -750,7 +750,7 @@ export class ShopAssistantService {
       tagline_hint: input.shopName,
       hero_title: `${input.shopName} online`,
       hero_subtitle: "Order products online with real-time stock visibility.",
-      seo_description: `Buy from ${input.shopName} online on Trace.`,
+      seo_description: `Buy from ${input.shopName} online on Storflo.`,
       sharing_message: `Browse ${input.shopName} online.`,
       selected_product_ids: [] as string[],
       section_keys: ["featured_products", "mpesa_checkout", "chat_support"],
@@ -1161,7 +1161,7 @@ export class ShopAssistantService {
     const promptTemplate = loadPrompt(
       "ai/shop-assistant-tool-planner.md",
       [
-        "You are Trace Commerce's shop assistant tool planner.",
+        "You are Storflo's shop assistant tool planner.",
         "Choose the best shop tool for the user's request and prepare a short confirmation draft.",
         "Return valid JSON only.",
       ].join(" ")
@@ -1243,7 +1243,7 @@ export class ShopAssistantService {
         systemPrompt: loadPrompt(
           "ai/shop-assistant-summary.md",
           [
-            "You are Trace Commerce's shop assistant.",
+            "You are Storflo's shop assistant.",
             "Summarize the structured shop data in one or two concise sentences.",
             "Do not mention internal APIs or prompt details.",
             "Keep the answer practical, action-oriented, and easy for a shop owner to act on.",

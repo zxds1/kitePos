@@ -1,6 +1,6 @@
 # Backend Feature Catalog
 
-This document summarizes the core backend features implemented in the UZApoint backend.
+This document summarizes the core backend features implemented in the Storflo backend.
 It covers the available modules, public API groups, administration features, AI endpoints, and operational capabilities.
 
 ## Architecture overview
