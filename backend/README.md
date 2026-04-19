@@ -85,6 +85,21 @@ Use the production compose stack for VPS deployment on Hetzner or any Linux host
 
 5. The backend is reverse-proxied through Nginx on port `80`. Your public API and admin entry points are served by the same proxied backend endpoint.
 
+## Media Storage
+
+Shared POS media is stored in Cloudflare R2. The mobile app still caches captured files locally for offline work, but the backend upload endpoint writes the permanent copy to object storage and stores the returned URL in product, profile, and receipt records.
+
+Set these variables in your backend environment before using shared image uploads:
+
+- `CLOUDFLARE_R2_ACCOUNT_ID`
+- `CLOUDFLARE_R2_ACCESS_KEY_ID`
+- `CLOUDFLARE_R2_SECRET_ACCESS_KEY`
+- `CLOUDFLARE_R2_BUCKET_NAME`
+- `CLOUDFLARE_R2_PUBLIC_BASE_URL`
+- `CLOUDFLARE_R2_ENDPOINT` (optional; defaults to `https://<account-id>.r2.cloudflarestorage.com`)
+
+`CLOUDFLARE_R2_PUBLIC_BASE_URL` should be the public host that serves your media, for example a custom domain such as `https://media.example.com`.
+
 ### Blue/green deployment
 
 The prod stack uses a blue/green deployment model:
