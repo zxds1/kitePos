@@ -96,6 +96,16 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         "practical like a trusted local dukashop, but with a polished finish",
         "simple and fast like a mobile-first store page",
       ],
+      reference_stores: [
+        "a clean premium boutique storefront",
+        "a simple local duka website with fast checkout",
+        "a polished mobile-first catalog page",
+      ],
+      content_priorities: [
+        "what the shop sells",
+        "why customers should trust it",
+        "how customers order fast",
+      ],
       hero_direction: [
         "show the best products first with a direct order CTA",
         "lead with trust, speed, and local fulfilment",
@@ -150,6 +160,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
           "Shop summary: {{shop_summary}}",
           "Current brief: {{brief_json}}",
           "Featured products: {{featured_products_json}}",
+          "If the brief mentions reference stores or content priorities, keep them specific and practical.",
           "Suggest a concise summary and a few options for the store owner to choose from.",
           "Keep the options concrete, specific, and easy for a real shop owner to approve or reject.",
           "Return JSON only.",
@@ -181,6 +192,14 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       reference_style: normalizeSuggestionList(
         extracted.suggestions?.reference_style,
         fallback.suggestions.reference_style
+      ),
+      reference_stores: normalizeSuggestionList(
+        extracted.suggestions?.reference_stores,
+        fallback.suggestions.reference_stores
+      ),
+      content_priorities: normalizeSuggestionList(
+        extracted.suggestions?.content_priorities,
+        fallback.suggestions.content_priorities
       ),
       hero_direction: normalizeSuggestionList(
         extracted.suggestions?.hero_direction,
