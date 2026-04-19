@@ -11,6 +11,7 @@ This directory contains the backend documentation for the Storflo backend.
 - `observability.md` — OpenTelemetry and health-check guidance.
 - `features.md` — Full backend feature catalog covering modules, API groups, AI, deployment, and observability.
 - `feature-status.md` — Explicit status of stable, caveated, and incomplete backend surfaces.
+- `demo-workspaces.md` — App-local demo catalog contract and boundaries.
 
 ## How to use
 

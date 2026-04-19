@@ -117,6 +117,7 @@ See:
 - [docs/README.md](/home/sugho/UZApoint/backend/docs/README.md)
 - [docs/features.md](/home/sugho/UZApoint/backend/docs/features.md)
 - [docs/feature-status.md](/home/sugho/UZApoint/backend/docs/feature-status.md)
+- [docs/demo-workspaces.md](/home/sugho/UZApoint/backend/docs/demo-workspaces.md)
 - [docs/ai-integration.md](/home/sugho/UZApoint/backend/docs/ai-integration.md)
 
 ## Notes
