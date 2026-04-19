@@ -4,6 +4,7 @@ import {
   authenticatePosJwt,
   type PosAuthenticatedRequest,
 } from "../../auth/_utils/jwt"
+import CloudflareR2Service from "../../../services/cloudflare-r2.service"
 
 const UploadSchema = z.object({
   file_name: z.string().min(1).max(255),
@@ -19,6 +20,11 @@ const allowedContentTypes = new Set([
   "image/png",
   "image/webp",
   "image/gif",
+  "image/heic",
+  "image/heif",
+  "image/avif",
+  "image/bmp",
+  "image/tiff",
 ])
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
@@ -46,9 +52,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   }
 
   const sanitizedBase64 = parsed.data.data_base64.replace(/\s+/g, "")
+  let buffer: Buffer
 
   try {
-    const buffer = Buffer.from(sanitizedBase64, "base64")
+    buffer = Buffer.from(sanitizedBase64, "base64")
     if (buffer.length <= 0) {
       throw new Error("empty")
     }
@@ -67,13 +74,24 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     return
   }
 
+  const mediaService = new CloudflareR2Service()
+  const upload = await mediaService.uploadImage({
+    buffer,
+    contentType: parsed.data.content_type,
+    fileName: parsed.data.file_name,
+    context: parsed.data.context,
+    shopId: auth.shop_id,
+  })
+
   res.status(201).json({
     success: true,
     upload: {
       file_name: parsed.data.file_name,
       content_type: parsed.data.content_type,
       context: parsed.data.context,
-      url: `data:${parsed.data.content_type};base64,${sanitizedBase64}`,
+      url: upload.url,
+      key: upload.key,
+      bucket: upload.bucket,
     },
   })
 }
