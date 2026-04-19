@@ -87,6 +87,32 @@ export function canUseLocation(
   )
 }
 
+export function resolveScopedAnalyticsLocationId(
+  auth: Pick<PosAuthTokenPayload, "role" | "assigned_location_ids">,
+  requestedLocationId?: string | null
+) {
+  if (roleHasGlobalBranchAccess(auth.role)) {
+    return requestedLocationId ?? null
+  }
+
+  const assignedLocationIds = normalizeAssignedLocationIds(
+    auth.assigned_location_ids
+  )
+
+  if (requestedLocationId) {
+    if (assignedLocationIds.includes(requestedLocationId)) {
+      return requestedLocationId
+    }
+    throw new Error("Location analytics access denied")
+  }
+
+  if (assignedLocationIds.length === 1) {
+    return assignedLocationIds[0]
+  }
+
+  throw new Error("Worker analytics must be scoped to an assigned branch")
+}
+
 export function shapeShopUser(user: ShopUserRecord) {
   return {
     id: user.id,

@@ -1,7 +1,7 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { authenticatePosJwt, type PosAuthenticatedRequest } from "../../../../auth/_utils/jwt"
 import { AnalyticsQuerySchema, buildProductAnalyticsDetail } from "../../_shared"
-import { canUseLocation } from "../../../../auth/_utils/shop-users"
+import { resolveScopedAnalyticsLocationId } from "../../../../auth/_utils/shop-users"
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const auth = authenticatePosJwt(req as PosAuthenticatedRequest, res)
@@ -28,10 +28,14 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     return
   }
 
-  if (parsed.data.location_id && !canUseLocation(auth, parsed.data.location_id)) {
+  let locationId: string | null
+  try {
+    locationId = resolveScopedAnalyticsLocationId(auth, parsed.data.location_id)
+  } catch (error) {
     res.status(403).json({
       success: false,
-      message: "Location analytics access denied",
+      message:
+        error instanceof Error ? error.message : "Location analytics access denied",
     })
     return
   }
@@ -43,7 +47,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     parsed.data.start_date,
     parsed.data.end_date,
     {
-      locationId: parsed.data.location_id ?? null,
+      locationId,
       salesChannel: parsed.data.sales_channel,
     }
   )
