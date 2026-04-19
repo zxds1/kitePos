@@ -82,6 +82,14 @@ export function renderStorefrontHtml(payload: StorefrontPayload) {
     storeContent.reference_style,
     text(siteBrief.reference_style, "local retail polish")
   )
+  const toneStyle = text(
+    storeContent.tone_style,
+    text(siteBrief.tone_style, "warm and confident")
+  )
+  const writingStyle = text(
+    storeContent.writing_style,
+    text(siteBrief.writing_style, "short headlines and simple sentences")
+  )
   const layoutNotes = text(
     storeContent.layout_notes,
     "hero, featured catalog, trust details, and contact footer"
@@ -255,6 +263,11 @@ export function renderStorefrontHtml(payload: StorefrontPayload) {
           <p>${escapeHtml(colorDescription)}</p>
           <p>${escapeHtml(visualStyle)}</p>
           <p>${escapeHtml(referenceStyle)}</p>
+        </div>
+        <div class="meta-card">
+          <h4>Voice</h4>
+          <p>${escapeHtml(toneStyle)}</p>
+          <p>${escapeHtml(writingStyle)}</p>
         </div>
         <div class="meta-card">
           <h4>Trust signals</h4>

@@ -171,7 +171,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
   const payload = {
     id:
-    (existing as Record<string, unknown> | undefined)?.id?.toString() ??
+      (existing as Record<string, unknown> | undefined)?.id?.toString() ??
       `ost_${randomUUID().replace(/-/g, "").slice(0, 24)}`,
     shop_id: auth.shop_id,
     slug,
@@ -188,9 +188,9 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       theme_name: parsed.data.theme_name,
       secure_site: true,
     },
-      storefront_content: {
-        hero_title:
-          parsed.data.hero_title ??
+    storefront_content: {
+      hero_title:
+        parsed.data.hero_title ??
         generatedRecord.hero_title ??
         `${shop.shop_name} online`,
       hero_subtitle:
@@ -200,25 +200,33 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       featured_products: featuredProducts,
       sections: sectionKeys,
       site_brief: siteBrief,
-        visual_style:
-          generatedRecord.visual_style ??
-          (siteBrief as Record<string, unknown>).visual_style ??
-          null,
-        reference_style:
-          generatedRecord.reference_style ??
-          (siteBrief as Record<string, unknown>).reference_style ??
-          null,
-        reference_stores:
-          generatedRecord.reference_stores ??
-          (siteBrief as Record<string, unknown>).reference_stores ??
-          [],
-        content_priorities:
-          generatedRecord.content_priorities ??
-          (siteBrief as Record<string, unknown>).content_priorities ??
-          [],
-        layout_notes:
-          generatedRecord.layout_notes ??
-          (siteBrief as Record<string, unknown>).layout_notes ??
+      visual_style:
+        generatedRecord.visual_style ??
+        (siteBrief as Record<string, unknown>).visual_style ??
+        null,
+      reference_style:
+        generatedRecord.reference_style ??
+        (siteBrief as Record<string, unknown>).reference_style ??
+        null,
+      reference_stores:
+        generatedRecord.reference_stores ??
+        (siteBrief as Record<string, unknown>).reference_stores ??
+        [],
+      content_priorities:
+        generatedRecord.content_priorities ??
+        (siteBrief as Record<string, unknown>).content_priorities ??
+        [],
+      tone_style:
+        generatedRecord.tone_style ??
+        (siteBrief as Record<string, unknown>).tone_style ??
+        null,
+      writing_style:
+        generatedRecord.writing_style ??
+        (siteBrief as Record<string, unknown>).writing_style ??
+        null,
+      layout_notes:
+        generatedRecord.layout_notes ??
+        (siteBrief as Record<string, unknown>).layout_notes ??
         null,
       trust_signals:
         generatedRecord.trust_signals ??

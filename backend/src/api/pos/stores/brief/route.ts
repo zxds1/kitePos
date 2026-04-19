@@ -106,6 +106,16 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         "why customers should trust it",
         "how customers order fast",
       ],
+      tone_style: [
+        "warm and confident",
+        "clear and practical",
+        "premium but not stiff",
+      ],
+      writing_style: [
+        "short headlines, simple sentences, and no jargon",
+        "friendly but direct",
+        "plain language that feels helpful and local",
+      ],
       hero_direction: [
         "show the best products first with a direct order CTA",
         "lead with trust, speed, and local fulfilment",
@@ -161,6 +171,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
           "Current brief: {{brief_json}}",
           "Featured products: {{featured_products_json}}",
           "If the brief mentions reference stores or content priorities, keep them specific and practical.",
+          "If the brief mentions tone or writing style, keep it plain, direct, and easy to approve.",
           "Suggest a concise summary and a few options for the store owner to choose from.",
           "Keep the options concrete, specific, and easy for a real shop owner to approve or reject.",
           "Return JSON only.",
@@ -200,6 +211,14 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       content_priorities: normalizeSuggestionList(
         extracted.suggestions?.content_priorities,
         fallback.suggestions.content_priorities
+      ),
+      tone_style: normalizeSuggestionList(
+        extracted.suggestions?.tone_style,
+        fallback.suggestions.tone_style
+      ),
+      writing_style: normalizeSuggestionList(
+        extracted.suggestions?.writing_style,
+        fallback.suggestions.writing_style
       ),
       hero_direction: normalizeSuggestionList(
         extracted.suggestions?.hero_direction,
