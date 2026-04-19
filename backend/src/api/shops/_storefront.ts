@@ -78,6 +78,10 @@ export function renderStorefrontHtml(payload: StorefrontPayload) {
   const accent = text(themeConfig.accent_color, "#195E86")
   const colorDescription = text(themeConfig.color_description, "calm retail colors")
   const visualStyle = text(storeContent.visual_style, "clean retail editorial")
+  const referenceStyle = text(
+    storeContent.reference_style,
+    text(siteBrief.reference_style, "local retail polish")
+  )
   const layoutNotes = text(
     storeContent.layout_notes,
     "hero, featured catalog, trust details, and contact footer"
@@ -250,6 +254,7 @@ export function renderStorefrontHtml(payload: StorefrontPayload) {
           <h4>Visual direction</h4>
           <p>${escapeHtml(colorDescription)}</p>
           <p>${escapeHtml(visualStyle)}</p>
+          <p>${escapeHtml(referenceStyle)}</p>
         </div>
         <div class="meta-card">
           <h4>Trust signals</h4>

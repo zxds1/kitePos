@@ -617,6 +617,7 @@ export class ShopAssistantService {
       store_slug: input.shopName,
       use_ai_copy: true,
       visual_style: "clean retail editorial",
+      reference_style: "simple and premium like a polished local shop page",
       layout_notes: "simple hero, featured catalog, trust section, and contact footer",
       trust_signals: ["business contact", "secure checkout", "returns guidance"],
       security_notes: ["HTTPS-only links", "no custom scripts", "plain-language policies"],
@@ -640,7 +641,7 @@ export class ShopAssistantService {
           "ai/shop-assistant-store-draft.md",
           [
             "Extract a storefront draft for the shop owner.",
-            "Return JSON only with keys theme_name, color_description, tagline_hint, hero_title, hero_subtitle, seo_description, sharing_message, selected_product_ids, section_keys, store_slug, use_ai_copy, site_brief, trust_signals, security_notes, visual_style, layout_notes, seo_keywords, cta_style, palette_notes, accent_color.",
+            "Return JSON only with keys theme_name, color_description, tagline_hint, hero_title, hero_subtitle, seo_description, sharing_message, selected_product_ids, section_keys, store_slug, use_ai_copy, site_brief, trust_signals, security_notes, visual_style, reference_style, layout_notes, seo_keywords, cta_style, palette_notes, accent_color.",
           ].join(" ")
         ),
         prompt: renderPrompt(
@@ -674,6 +675,9 @@ export class ShopAssistantService {
       security_notes: Array.isArray(extracted.security_notes)
         ? extracted.security_notes.map((item) => String(item))
         : fallbackPayload.security_notes,
+      reference_style:
+        String(extracted.reference_style ?? "").trim() ||
+        fallbackPayload.reference_style,
       seo_keywords: Array.isArray(extracted.seo_keywords)
         ? extracted.seo_keywords.map((item) => String(item))
         : fallbackPayload.seo_keywords,
@@ -722,6 +726,7 @@ export class ShopAssistantService {
       store_slug: input.shopName,
       use_ai_copy: true,
       visual_style: "clean retail editorial",
+      reference_style: "simple and premium like a polished local shop page",
       layout_notes: "simple hero, featured catalog, trust section, and contact footer",
       trust_signals: ["business contact", "secure checkout", "returns guidance"],
       security_notes: ["HTTPS-only links", "no custom scripts", "plain-language policies"],
@@ -745,7 +750,7 @@ export class ShopAssistantService {
           "ai/shop-assistant-store-draft.md",
           [
             "Extract storefront copy and structure for the shop owner.",
-            "Return JSON only with keys theme_name, color_description, tagline_hint, hero_title, hero_subtitle, seo_description, sharing_message, selected_product_ids, section_keys, store_slug, use_ai_copy, site_brief, trust_signals, security_notes, visual_style, layout_notes, seo_keywords, cta_style, palette_notes, accent_color.",
+            "Return JSON only with keys theme_name, color_description, tagline_hint, hero_title, hero_subtitle, seo_description, sharing_message, selected_product_ids, section_keys, store_slug, use_ai_copy, site_brief, trust_signals, security_notes, visual_style, reference_style, layout_notes, seo_keywords, cta_style, palette_notes, accent_color.",
           ].join(" ")
         ),
         prompt: renderPrompt(
@@ -778,6 +783,9 @@ export class ShopAssistantService {
       security_notes: Array.isArray(extracted.security_notes)
         ? extracted.security_notes.map((item) => String(item))
         : fallbackPayload.security_notes,
+      reference_style:
+        String(extracted.reference_style ?? "").trim() ||
+        fallbackPayload.reference_style,
       seo_keywords: Array.isArray(extracted.seo_keywords)
         ? extracted.seo_keywords.map((item) => String(item))
         : fallbackPayload.seo_keywords,

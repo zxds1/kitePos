@@ -91,6 +91,11 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         "bold local commerce",
         "warm premium storefront",
       ],
+      reference_style: [
+        "closer to a clean premium boutique than a crowded marketplace",
+        "practical like a trusted local dukashop, but with a polished finish",
+        "simple and fast like a mobile-first store page",
+      ],
       hero_direction: [
         "show the best products first with a direct order CTA",
         "lead with trust, speed, and local fulfilment",
@@ -136,7 +141,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         "ai/shop-assistant-store-draft.md",
         [
           "Return a structured storefront brief with safe defaults.",
-          "Use natural language color descriptions and practical storefront suggestions.",
+          "Use natural language color descriptions, reference styles, and practical storefront suggestions.",
         ].join(" ")
       ),
       prompt: renderPrompt(
@@ -146,6 +151,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
           "Current brief: {{brief_json}}",
           "Featured products: {{featured_products_json}}",
           "Suggest a concise summary and a few options for the store owner to choose from.",
+          "Keep the options concrete, specific, and easy for a real shop owner to approve or reject.",
           "Return JSON only.",
         ].join("\n"),
         {
@@ -171,6 +177,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       visual_style: normalizeSuggestionList(
         extracted.suggestions?.visual_style,
         fallback.suggestions.visual_style
+      ),
+      reference_style: normalizeSuggestionList(
+        extracted.suggestions?.reference_style,
+        fallback.suggestions.reference_style
       ),
       hero_direction: normalizeSuggestionList(
         extracted.suggestions?.hero_direction,

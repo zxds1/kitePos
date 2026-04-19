@@ -204,6 +204,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         generatedRecord.visual_style ??
         (siteBrief as Record<string, unknown>).visual_style ??
         null,
+      reference_style:
+        generatedRecord.reference_style ??
+        (siteBrief as Record<string, unknown>).reference_style ??
+        null,
       layout_notes:
         generatedRecord.layout_notes ??
         (siteBrief as Record<string, unknown>).layout_notes ??
