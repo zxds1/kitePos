@@ -1,159 +1,125 @@
-<p align="center">
-  <a href="https://www.medusajs.com">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://user-images.githubusercontent.com/59018053/229103275-b5e482bb-4601-46e6-8142-244f531cebdb.svg">
-    <source media="(prefers-color-scheme: light)" srcset="https://user-images.githubusercontent.com/59018053/229103726-e5b529a3-9b3f-4970-8a1f-c6af37f087bf.svg">
-    <img alt="Medusa logo" src="https://user-images.githubusercontent.com/59018053/229103726-e5b529a3-9b3f-4970-8a1f-c6af37f087bf.svg">
-    </picture>
-  </a>
-</p>
-<h1 align="center">
-  Medusa
-</h1>
+# UZApoint Backend
 
-<h4 align="center">
-  <a href="https://docs.medusajs.com">Documentation</a> |
-  <a href="https://www.medusajs.com">Website</a>
-</h4>
+The backend is the operational core for the UZApoint stack. It serves:
 
-<p align="center">
-  Building blocks for digital commerce
-</p>
+- POS mobile clients in `uza_pos`
+- public storefront generation and publishing flows
+- admin and internal operational routes
+- partner and export APIs
+- AI-assisted extraction and matching flows
 
-## Project Onboarding
+This repository is Medusa-based, but it is no longer a generic starter. The source of truth is the UZApoint domain model under `src/modules`, `src/api`, and `src/services`.
 
-If you are joining this repository, start with [docs/project-onboarding.md](../docs/project-onboarding.md) for a practical explanation of the backend, storefront, and POS app.
+## Topology
 
-<p align="center">
-  <a href="https://github.com/medusajs/medusa/blob/master/CONTRIBUTING.md">
-    <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat" alt="PRs welcome!" />
-  </a>
-    <a href="https://www.producthunt.com/posts/medusa"><img src="https://img.shields.io/badge/Product%20Hunt-%231%20Product%20of%20the%20Day-%23DA552E" alt="Product Hunt"></a>
-  <a href="https://discord.gg/xpCwq3Kfn8">
-    <img src="https://img.shields.io/badge/chat-on%20discord-7289DA.svg" alt="Discord Chat" />
-  </a>
-  <a href="https://twitter.com/intent/follow?screen_name=medusajs">
-    <img src="https://img.shields.io/twitter/follow/medusajs.svg?label=Follow%20@medusajs" alt="Follow @medusajs" />
-  </a>
-</p>
+Main backend areas:
 
-## Compatibility
+- `src/api/auth` and `src/api/pos/auth`
+  - OTP, PIN, refresh-token, staff recovery, and POS auth flows
+- `src/api/pos`
+  - products, sales, restocks, settings, uploads, analytics, staff, stores, AI routes
+- `src/api/admin`
+  - operational and admin-facing management routes
+- `src/api/shops`
+  - public storefront and published shop-site endpoints
+- `src/modules`
+  - persistent business modules such as sale snapshots, suppliers, loyalty, tax, partners, exports
+- `src/services`
+  - integrations and reusable logic such as AI extraction, Cloudflare R2, billing, loyalty, and tax
+- `deploy`
+  - blue/green deploy scripts and Nginx config
+- `integration-tests/http`
+  - HTTP seam tests for POS, analytics, restocks, settings, and partner flows
 
-This starter is compatible with versions >= 2 of `@medusajs/medusa`. 
+## Current Responsibilities
 
-## Getting Started
+The backend currently handles:
 
-Visit the [Quickstart Guide](https://docs.medusajs.com/learn/installation) to set up a server.
-
-Visit the [Docs](https://docs.medusajs.com/learn/installation#get-started) to learn more about our system requirements.
-
-For full backend documentation, see `backend/docs/README.md`.
-
-## Staging
-
-Use the staging compose stack to run the backend with a production-like service topology.
-
-1. Create or update `backend/.env.staging` with your secrets and service URLs.
-2. Start the stack with:
-
-   ```bash
-   docker-compose -f docker-compose.staging.yml up --build
-   ```
-
-3. The backend will be available at `http://localhost:9000` and Ragflow at `http://localhost:8080`.
-
-4. Enable telemetry in staging by setting `ENABLE_OTEL=true` and configuring `OTEL_EXPORTER`.
-
-## Production
-
-Use the production compose stack for VPS deployment on Hetzner or any Linux host.
-
-1. Create or update `backend/.env.prod` with your production domain values, secrets, and API keys.
-2. Add the required GitHub secrets for deployment:
-   - `VPS_HOST`
-   - `VPS_USER`
-   - `VPS_SSH_KEY`
-   - `VPS_DEPLOY_PATH`
-   - `VPS_KNOWN_HOSTS`
-3. Deploy using the production compose stack:
-
-   ```bash
-   docker-compose -f docker-compose.prod.yml up --build -d
-   ```
-
-4. On GitHub, the production deploy workflow is available at `.github/workflows/backend-prod-deploy.yml` and runs on pushes to `main`.
-
-5. The backend is reverse-proxied through Nginx on port `80`. Your public API and admin entry points are served by the same proxied backend endpoint.
+- auth and session lifecycle
+- shop, staff, branch, and terminal access control
+- offline sync ingestion for sales and restocks
+- product catalog and inventory config
+- public storefront generation and serving
+- photo extraction and hybrid product matching
+- exports, partner usage logging, and partner billing
+- media uploads to Cloudflare R2
 
 ## Media Storage
 
-Shared POS media is stored in Cloudflare R2. The mobile app still caches captured files locally for offline work, but the backend upload endpoint writes the permanent copy to object storage and stores the returned URL in product, profile, and receipt records.
+Shared app media is stored in Cloudflare R2.
 
-Set these variables in your backend environment before using shared image uploads:
+- Mobile devices still cache media locally for offline work.
+- The backend upload route stores the permanent object in R2.
+- Persistent records store the returned URL and metadata, not raw image bytes.
+
+Required environment variables:
 
 - `CLOUDFLARE_R2_ACCOUNT_ID`
 - `CLOUDFLARE_R2_ACCESS_KEY_ID`
 - `CLOUDFLARE_R2_SECRET_ACCESS_KEY`
 - `CLOUDFLARE_R2_BUCKET_NAME`
 - `CLOUDFLARE_R2_PUBLIC_BASE_URL`
-- `CLOUDFLARE_R2_ENDPOINT` (optional; defaults to `https://<account-id>.r2.cloudflarestorage.com`)
+- `CLOUDFLARE_R2_ENDPOINT` optional
 
-`CLOUDFLARE_R2_PUBLIC_BASE_URL` should be the public host that serves your media, for example a custom domain such as `https://media.example.com`.
+## Local Development
 
-### Blue/green deployment
+1. Install dependencies:
 
-The prod stack uses a blue/green deployment model:
+```bash
+npm install
+```
 
-- `backend_blue` and `backend_green` are both defined in `docker-compose.prod.yml`.
-- `deploy/bluegreen-deploy.sh` builds the next inactive color, boots it, waits for a healthy `/health` response, then switches traffic via Nginx.
-- The previous color remains available until the switch is complete, so rollback can happen without downtime.
+2. Copy and fill env:
 
-### Rollback strategy
+```bash
+cp .env.example .env
+```
 
-Use `deploy/rollback.sh` to move traffic back to the previously active color if the new release is unhealthy or broken.
+3. Run the backend:
 
-- The rollback script brings the previous backend back online if needed.
-- It updates `deploy/nginx/active-backend.conf` and reloads Nginx.
-- The old container remains available after deployment so rollback is fast.
+```bash
+npm run dev
+```
 
-## Admin link exposure
+4. Build to validate production compilation:
 
-To expose admin access correctly in production:
+```bash
+npm run build
+```
 
-- Set `ADMIN_CORS` and `AUTH_CORS` in `backend/.env.prod` to your admin UI domain.
-- Set `STORE_CORS` to your storefront domain.
-- Use `ADMIN_URL=https://your-admin.example.com` in `backend/.env.prod` as a reference for your admin UI host.
-- Medusa backend API requests are served from `https://your-backend.example.com`; admin UI should connect to that host through CORS.
+## Testing
 
-## What is Medusa
+Common checks:
 
-Medusa is a set of commerce modules and tools that allow you to build rich, reliable, and performant commerce applications without reinventing core commerce logic. The modules can be customized and used to build advanced ecommerce stores, marketplaces, or any product that needs foundational commerce primitives. All modules are open-source and freely available on npm.
+```bash
+npm run build
+npm test
+```
 
-Learn more about [Medusa’s architecture](https://docs.medusajs.com/learn/introduction/architecture) and [commerce modules](https://docs.medusajs.com/learn/fundamentals/modules/commerce-modules) in the Docs.
+HTTP seam tests live in `integration-tests/http`.
 
-## Build with AI Agents
+## Deployment
 
-### Claude Code Plugin
+Staging and production use compose-based service topologies plus blue/green deployment tooling.
 
-If you use AI agents like Claude Code, check out the [medusa-dev Claude Code plugin](https://github.com/medusajs/medusa-claude-plugins).
+- staging env: `.env.staging`
+- production env: `.env.prod`
+- deploy scripts: `deploy/bluegreen-deploy.sh`, `deploy/rollback.sh`
 
-### Other Agents
+See:
 
-If you use AI agents other than Claude Code, copy the [skills directory](https://github.com/medusajs/medusa-claude-plugins/tree/main/plugins/medusa-dev/skills) into your agent's relevant `skills` directory.
+- [docs/deployment.md](/home/sugho/UZApoint/backend/docs/deployment.md)
+- [docs/admin.md](/home/sugho/UZApoint/backend/docs/admin.md)
+- [docs/observability.md](/home/sugho/UZApoint/backend/docs/observability.md)
 
-### MCP Server
+## Documentation Index
 
-You can also add the MCP server `https://docs.medusajs.com/mcp` to your AI agents to answer questions related to Medusa. The `medusa-dev` Claude Code plugin includes this MCP server by default.
+- [docs/README.md](/home/sugho/UZApoint/backend/docs/README.md)
+- [docs/features.md](/home/sugho/UZApoint/backend/docs/features.md)
+- [docs/feature-status.md](/home/sugho/UZApoint/backend/docs/feature-status.md)
+- [docs/ai-integration.md](/home/sugho/UZApoint/backend/docs/ai-integration.md)
 
-## Community & Contributions
+## Notes
 
-The community and core team are available in [GitHub Discussions](https://github.com/medusajs/medusa/discussions), where you can ask for support, discuss roadmap, and share ideas.
-
-Join our [Discord server](https://discord.com/invite/medusajs) to meet other community members.
-
-## Other channels
-
-- [GitHub Issues](https://github.com/medusajs/medusa/issues)
-- [Twitter](https://twitter.com/medusajs)
-- [LinkedIn](https://www.linkedin.com/company/medusajs)
-- [Medusa Blog](https://medusajs.com/blog/)
+- `partner_portal` is a separate surface and should be treated independently when planning app/backend work.
+- Not every route exposed in the codebase is product-complete. Use the feature status document before assuming a surface is production-ready.

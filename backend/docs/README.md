@@ -1,6 +1,6 @@
 # Backend Documentation
 
-This directory contains the backend documentation for the UZApoint Medusa backend.
+This directory contains the backend documentation for the UZApoint backend.
 
 ## Contents
 
@@ -10,7 +10,8 @@ This directory contains the backend documentation for the UZApoint Medusa backen
 - `ai-integration.md` — AI route summary, environment variables, and operational notes.
 - `observability.md` — OpenTelemetry and health-check guidance.
 - `features.md` — Full backend feature catalog covering modules, API groups, AI, deployment, and observability.
+- `feature-status.md` — Explicit status of stable, caveated, and incomplete backend surfaces.
 
 ## How to use
 
-Read the individual sections for details on development, deployment, admin exposure, AI features, and observability.
+Read `feature-status.md` before assuming a route or module is production-complete.

@@ -1,4 +1,8 @@
-import { BillingConfigurationError, BillingService } from "../billing.service"
+import {
+  BillingConfigurationError,
+  BillingService,
+  pricePerRowForBillingTier,
+} from "../billing.service"
 
 global.fetch = jest.fn() as any
 
@@ -138,5 +142,13 @@ describe("BillingService", () => {
         name: "Trace Partner",
       })
     ).rejects.toBeInstanceOf(BillingConfigurationError)
+  })
+
+  it("maps billing tiers to deterministic export prices", () => {
+    expect(pricePerRowForBillingTier("enterprise")).toBe(0.01)
+    expect(pricePerRowForBillingTier("premium")).toBe(0.02)
+    expect(pricePerRowForBillingTier("basic")).toBe(0.03)
+    expect(pricePerRowForBillingTier("free")).toBe(0.05)
+    expect(pricePerRowForBillingTier("unknown")).toBe(0.05)
   })
 })
