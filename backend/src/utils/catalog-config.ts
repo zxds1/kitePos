@@ -24,6 +24,7 @@ export type CatalogConfig = {
 }
 
 const SLUG_PATTERN = /^[a-z0-9]+(?:[_-][a-z0-9]+)*$/
+const VIRTUAL_INDUSTRY_TYPES = new Set(["custom_setup"])
 
 function ensureSlug(value: unknown, field: string): string {
   const slug = String(value ?? "").trim()
@@ -161,7 +162,9 @@ export function validateIndustryTypes(industryTypes: string[]) {
       industryTypes.map((entry) => ensureSlug(entry, "industry_type")).filter(Boolean)
     )
   )
-  const unknown = normalized.filter((entry) => !allowed.has(entry))
+  const unknown = normalized.filter(
+    (entry) => !allowed.has(entry) && !VIRTUAL_INDUSTRY_TYPES.has(entry)
+  )
 
   return {
     normalized,
@@ -172,6 +175,10 @@ export function validateIndustryTypes(industryTypes: string[]) {
 export function mergeIndustryFeatures(industryTypes: string[]) {
   const allowed = flattenIndustries()
   return industryTypes.reduce<Record<string, unknown>>((acc, slug) => {
+    if (VIRTUAL_INDUSTRY_TYPES.has(slug)) {
+      return acc
+    }
+
     const industry = allowed.get(slug)
     if (!industry) {
       return acc
@@ -188,6 +195,10 @@ export function industrySupplierCategories(industryTypes: string[]) {
   const allowed = flattenIndustries()
   const derived = new Set<string>()
   for (const slug of industryTypes) {
+    if (VIRTUAL_INDUSTRY_TYPES.has(slug)) {
+      continue
+    }
+
     const industry = allowed.get(slug)
     if (!industry) {
       derived.add(slug.replaceAll("_", " "))

@@ -63,6 +63,11 @@ function deriveSupplierCategories(shop: Record<string, unknown>) {
     derived.add(category)
   }
 
+  const customIndustryLabel = shop.custom_industry_label?.toString().trim()
+  if (customIndustryLabel) {
+    derived.add(customIndustryLabel)
+  }
+
   const category = shop.category?.toString().trim()
   if (category) {
     derived.add(category)
@@ -126,6 +131,10 @@ export function shapeSupplierNetworkShop(shop: Record<string, unknown>) {
     is_supplier: shop.is_supplier === true,
     supplier_verified: shop.supplier_verified === true,
     shop_type: shop.shop_type?.toString() ?? "retail_duka",
+    custom_industry_label:
+      typeof shop.custom_industry_label === "string"
+        ? shop.custom_industry_label
+        : null,
     industry_types: industryTypes,
     supplier_categories: deriveSupplierCategories(shop),
     supplier_description:

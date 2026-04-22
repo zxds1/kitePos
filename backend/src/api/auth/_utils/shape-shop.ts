@@ -16,11 +16,29 @@ export function shapeShop(shop: Record<string, unknown>) {
         .map((entry) => entry?.toString())
         .filter((entry): entry is string => typeof entry === "string" && entry.length > 0)
     : [shop.shop_type?.toString() ?? "retail_duka"]
+  const rawShopCategories =
+    shop.shop_categories &&
+    typeof shop.shop_categories === "object" &&
+    Array.isArray((shop.shop_categories as Record<string, unknown>).values)
+      ? ((shop.shop_categories as Record<string, unknown>).values as unknown[])
+      : Array.isArray(shop.shop_categories)
+        ? (shop.shop_categories as unknown[])
+        : []
+  const shopCategories = rawShopCategories
+    .map((entry) => entry?.toString())
+    .filter((entry): entry is string => typeof entry === "string" && entry.length > 0)
+  const normalizedShopCategories = shopCategories.length > 0
+    ? shopCategories
+    : shop.category?.toString().trim()
+      ? [shop.category.toString().trim()]
+      : []
 
   return {
     id: shop.id,
     shop_name: shop.shop_name,
     shop_type: shop.shop_type ?? "retail_duka",
+    custom_industry_label: shop.custom_industry_label ?? null,
+    shop_categories: normalizedShopCategories,
     industry_types: industryTypes,
     industry_features: shop.industry_features ?? null,
     owner_name: shop.owner_name,

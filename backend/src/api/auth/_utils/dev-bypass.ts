@@ -35,12 +35,22 @@ function getAllowedPhones(): Set<string> {
   )
 }
 
+function allowAnyPhone() {
+  return (process.env.DEV_BYPASS_ALLOWED_PHONES ?? "")
+    .split(",")
+    .map((entry) => entry.trim().toLowerCase())
+    .some((entry) => entry === "*" || entry === "all")
+}
+
 export function isDevAuthBypassEnabled() {
   return process.env.ENABLE_DEV_AUTH_BYPASS === "true"
 }
 
 export function isAllowedDevBypassPhone(phoneNumber: string) {
-  return isDevAuthBypassEnabled() && getAllowedPhones().has(phoneNumber)
+  return (
+    isDevAuthBypassEnabled() &&
+    (allowAnyPhone() || getAllowedPhones().has(phoneNumber))
+  )
 }
 
 export function getDevBypassPin() {

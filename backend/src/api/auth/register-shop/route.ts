@@ -39,6 +39,18 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     body.industry_types?.length ? body.industry_types : [body.industry_type]
   const { normalized: normalizedIndustryTypes, unknown } =
     validateIndustryTypes(requestedIndustryTypes)
+  const isCustomSetup = normalizedIndustryTypes.includes("custom_setup")
+  const normalizedCategories = Array.from(
+    new Set(
+      (body.categories ?? [])
+        .map((entry) => entry.trim())
+        .filter((entry) => entry.length > 0)
+    )
+  )
+  const trimmedCategory = body.category?.trim()
+  const primaryCategory =
+    normalizedCategories[0] ??
+    (trimmedCategory && trimmedCategory.length > 0 ? trimmedCategory : null)
   const ownerPhoneHash = hashPhone(body.owner_phone)
 
   if (unknown.length > 0) {
@@ -57,7 +69,6 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     })
     return
   }
-
 
   const [existingShop] = await shopService.listShops(
     { owner_phone_hash: ownerPhoneHash },
@@ -81,6 +92,11 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     shop_name: body.shop_name,
     owner_phone_hash: ownerPhoneHash,
     shop_type: normalizedIndustryTypes[0] ?? body.industry_type,
+    custom_industry_label: isCustomSetup
+      ? body.custom_industry_label?.trim() ?? null
+      : null,
+    shop_categories:
+      normalizedCategories.length > 0 ? { values: normalizedCategories } : null,
     industry_types: { values: normalizedIndustryTypes },
     industry_features: {
       ...mergeIndustryFeatures(normalizedIndustryTypes),
@@ -88,7 +104,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     },
     region_code: body.region_code,
     ward_code: body.ward_code,
-    category: body.category ?? null,
+    category: primaryCategory,
     consent_given: body.consent_given,
     consent_timestamp: body.consent_timestamp ?? new Date(),
     is_active: body.is_active,

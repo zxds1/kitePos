@@ -8,6 +8,8 @@ const Shop = model.define("shop", {
   owner_phone_hash: model.text(),
   owner_name: model.text().nullable(),
   shop_type: model.text().default("retail_duka"),
+  custom_industry_label: model.text().nullable(),
+  shop_categories: model.json().nullable(),
   industry_types: model.json().nullable(),
   industry_features: model.json().nullable(),
 

@@ -62,6 +62,7 @@ export const AuthRegisterShop = z.object({
   region_code: z.string().min(1),
   ward_code: z.string().min(1),
   category: z.string().optional(),
+  categories: z.array(z.string().trim().min(1)).min(1).optional(),
   consent_given: z.boolean().optional().default(false),
   consent_timestamp: z.coerce.date().optional(),
   is_active: z.boolean().optional().default(true),
@@ -73,4 +74,44 @@ export const AuthRegisterShop = z.object({
   industry_type: IndustryType.optional().default("retail_duka"),
   industry_types: z.array(IndustryType).min(1).optional(),
   industry_features: z.record(z.string(), z.unknown()).optional(),
+  custom_industry_label: z.string().trim().max(80).optional(),
+}).superRefine((body, ctx) => {
+  const requestedIndustryTypes =
+    body.industry_types?.length ? body.industry_types : [body.industry_type]
+  const isCustomSetup = requestedIndustryTypes.includes("custom_setup")
+
+  if (!isCustomSetup) {
+    return
+  }
+
+  if (requestedIndustryTypes.length != 1) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["industry_types"],
+      message: "Custom setup must be the only selected industry type",
+    })
+  }
+
+  if ((body.custom_industry_label ?? "").trim().length === 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["custom_industry_label"],
+      message: "Custom industry label is required for custom setup",
+    })
+  }
+
+  if ((body.category ?? "").trim().length === 0) {
+    const normalizedCategories = (body.categories ?? [])
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0)
+    if (normalizedCategories.length > 0) {
+      return
+    }
+
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["category"],
+      message: "Category is required for custom setup",
+    })
+  }
 })
