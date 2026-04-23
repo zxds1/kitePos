@@ -1,0 +1,67 @@
+name: UZA POS Debug APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      dev_bypass_allowed_phones:
+        description: Comma-separated phone list or * for all phones
+        required: false
+        default: "*"
+      dev_bypass_pin:
+        description: Dev bypass PIN
+        required: false
+        default: "1234"
+  push:
+    branches: [main, staging]
+    paths:
+      - "uza_pos/**"
+      - ".github/workflows/uza-pos-debug-apk.yml"
+  pull_request:
+    branches: [main, staging]
+    paths:
+      - "uza_pos/**"
+      - ".github/workflows/uza-pos-debug-apk.yml"
+
+jobs:
+  build-debug-apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: uza_pos
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            uza_pos
+          fetch-depth: 1
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.38.5"
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build debug APK with dev bypass
+        run: >
+          flutter build apk --debug
+          --dart-define=ENABLE_DEV_AUTH_BYPASS=true
+          --dart-define=DEV_BYPASS_ALLOWED_PHONES="${{ github.event.inputs.dev_bypass_allowed_phones || '*' }}"
+          --dart-define=DEV_BYPASS_PIN="${{ github.event.inputs.dev_bypass_pin || '1234' }}"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: uza-pos-debug-apk
+          path: uza_pos/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
